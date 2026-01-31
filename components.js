@@ -1,0 +1,583 @@
+// =========================================================
+// 1. CONFIG & UTILITIES
+// =========================================================
+const API_BASE = 'https://autoshift-backend.onrender.com'; 
+
+// ฟังก์ชันช่วยดึงข้อมูลผู้ใช้จาก LocalStorage
+function getUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+}
+
+// ฟังก์ชันแปลง Path รูปภาพให้ถูกต้อง
+function getProfileImageUrl(path) {
+    if (!path) return 'https://placehold.co/100?text=User';
+    // ตรวจสอบ path ว่ามี http หรือไม่ ถ้าไม่มีให้เติม path ของ server
+    return path.startsWith('http') ? path : `${API_BASE}/uploads/${path}`;
+}
+
+// ฟังก์ชันออกจากระบบ
+async function logout() {
+    const user = getUser(); 
+    const token = localStorage.getItem('token');
+
+    // 1. ถ้ามี UserID ให้ยิง API ไปบอก Server ว่า Logout แล้ว
+    if (user && user.UserID) {
+        try {
+            await fetch(`${API_BASE}/logout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ userId: user.UserID })
+            });
+        } catch (err) {
+            console.error("Logout API Error:", err);
+            // ต่อให้ API Error ก็ต้องยอมให้ Logout ได้ เพื่อไม่ให้ user ติดอยู่ในระบบ
+        }
+    }
+
+    // 2. ลบข้อมูลใน LocalStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+
+    // 3. หยุดระบบแจ้งเตือนถ้าทำงานอยู่
+    if (window.notificationInterval) {
+        clearInterval(window.notificationInterval);
+        window.notificationInterval = null;
+    }
+
+    // 4. Redirect ไปหน้า Login
+    window.location.href = 'login.html';
+}
+
+// =========================================================
+// 2. WEB COMPONENTS
+// =========================================================
+
+// --- App Header (เมนูบน) ---
+class AppHeader extends HTMLElement {
+    connectedCallback() {
+        const user = getUser(); 
+        if (!user) return;
+
+        const isHead = user.RoleID === 1;
+
+        // Config Theme ตาม Role
+        const theme = isHead
+            ? {
+                hexColor: '#7c3aed',
+                iconBg: '#7c3aed',
+                title: 'HEAD NURSE',
+                sub: 'ADMINISTRATION',
+                homeLink: 'Headnurse_dashboard.html',
+                notiLink: 'notifications.html',
+                userIcon: 'fa-user-md',
+            }
+            : {
+                hexColor: '#4f46e5',
+                iconBg: '#4f46e5',
+                title: `สวัสดี ${user.FirstName}`, 
+                sub: 'NURSE SYSTEM',
+                homeLink: 'dashboard.html',
+                notiLink: 'notifications.html', 
+                userIcon: 'fa-user-nurse',
+            };
+
+        this.innerHTML = `
+        <header class="bg-white sticky top-0 w-full shadow-sm" style="z-index: 2000 !important; border-top: 4px solid ${theme.hexColor};">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center relative">
+                
+                <a href="${theme.homeLink}" class="flex items-center gap-3 shrink-0">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md transition-transform hover:scale-105"
+                         style="background-color: ${theme.iconBg};">
+                        <i class="fas ${theme.userIcon} text-lg"></i> 
+                    </div>
+                    <div class="flex flex-col">
+                        <h1 class="text-sm sm:text-lg font-bold text-slate-800 leading-none">${theme.title}</h1>
+                        <p class="text-[9px] text-slate-400 font-medium tracking-wide mt-1 uppercase">${theme.sub}</p>
+                    </div>
+                </a>
+
+                <div class="flex items-center gap-3 sm:gap-5 shrink-0">
+                    
+                    <div class="relative inline-block">
+                        <button id="noti-trigger" class="relative p-2 rounded-full hover:bg-slate-50 transition-all group focus:outline-none">
+                            <i class="fas fa-bell text-2xl text-slate-400 transition-colors group-hover:text-indigo-500"></i>
+                            
+                            <span id="unread-count" class="hidden absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white shadow-sm ring-1 ring-red-200">
+                                0
+                            </span>
+                        </button>
+
+                        <div id="noti-dropdown" 
+                             class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[92vw] sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden origin-top transition-all duration-200" 
+                             style="z-index: 2001;">
+                            
+                            <div class="px-4 py-3 border-b border-slate-50 bg-slate-50 flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-slate-700">การแจ้งเตือน</h3>
+                                <span class="text-[10px] text-slate-400">ล่าสุด</span>
+                            </div>
+                            
+                            <div id="noti-list" class="max-h-80 overflow-y-auto custom-scrollbar">
+                                <div class="p-4 text-center text-xs text-gray-400">กำลังโหลด...</div>
+                            </div>
+                            
+                            <a href="${theme.notiLink}" class="block bg-slate-50 py-3 text-center text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-100 border-t border-slate-100 transition-colors">
+                                ดูทั้งหมด
+                            </a>
+                        </div>
+                    </div>
+
+                    <div id="profile-menu-trigger" class="relative flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-50 py-1 pl-1 pr-3 rounded-full border border-slate-200 shadow-sm transition-all min-w-fit">
+                        <img id="header-avatar" 
+                            class="w-10 h-10 rounded-full object-cover border border-slate-100 shadow-sm shrink-0" 
+                            src="${getProfileImageUrl(user.ProfileImage)}" 
+                            onerror="this.src='https://placehold.co/100?text=User'">
+                        
+                        <div class="flex flex-col items-start leading-tight">
+                            <span class="text-sm font-bold text-slate-700 truncate max-w-[100px]">${user.FirstName}</span>
+                            <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-0.5 tracking-tight uppercase">
+                                <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                                ONLINE
+                            </span>
+                        </div>
+                        <i class="fas fa-chevron-down text-xs text-slate-400 ml-1 shrink-0"></i>
+                    </div>
+
+                </div>
+            </div>
+        </header>`;
+        this.setupProfileLogic(user);
+        this.setupNotiLogic(user);
+        this.fetchBadgeCount(user);
+    }
+
+    setupNotiLogic(user) {
+        const trigger = this.querySelector('#noti-trigger');
+        const dropdown = this.querySelector('#noti-dropdown');
+        const listContainer = this.querySelector('#noti-list');
+
+        trigger.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const profileDropdown = document.getElementById('global-custom-dropdown');
+            if(profileDropdown) profileDropdown.classList.add('hidden');
+
+            dropdown.classList.toggle('hidden');
+
+            if (!dropdown.classList.contains('hidden')) {
+                await this.loadNotificationsInDropdown(user, listContainer);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    async loadNotificationsInDropdown(user, container) {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE}/api/notifications/all/${user.UserID}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error("Load failed");
+            const data = await res.json();
+
+            container.innerHTML = ""; 
+
+            if (!data.success || data.notifications.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-slate-400 text-xs">ไม่มีการแจ้งเตือนใหม่</div>`;
+                return;
+            }
+
+            data.notifications.slice(0, 5).forEach(noti => {
+                const timeAgo = new Date(noti.created_at).toLocaleString('th-TH', { 
+                    timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'
+                });
+                
+                const isSystem = noti.type === 'system';
+                const iconBg = isSystem ? 'bg-blue-50 text-blue-500' : 'bg-orange-50 text-orange-500';
+
+                container.innerHTML += `
+                <div class="px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors" onclick="window.location.href='notifications.html'">
+                    <div class="flex gap-3 items-start">
+                        <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]">
+                            <i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-center gap-2">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? noti.LastName : noti.FirstName}</h4>
+                                <span class="text-[9px] text-slate-400 whitespace-nowrap">${timeAgo}</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 truncate mt-0.5 font-light">${noti.info}</p>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        } catch (err) { container.innerHTML = '<div class="p-4 text-center text-xs text-red-400">เกิดข้อผิดพลาด</div>'; }
+    }
+
+    async fetchBadgeCount(user) {
+        try {
+            const token = localStorage.getItem('token');
+            
+            // [Fix 403] ถ้าไม่มี Token ไม่ต้องยิง API
+            if (!token) return;
+
+            const isHead = user.RoleID === 1;
+            const endpoint = isHead ? '/api/admin/pending-counts' : `/api/notifications/unread-count/${user.UserID}`;
+            
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // [Fix 403] ดักจับ 401/403 ถ้า Token หมดอายุ ให้หยุดเงียบๆ
+            if (res.status === 401 || res.status === 403) {
+                console.warn("Token expired (fetchBadgeCount)");
+                return; 
+            }
+
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (data.success) {
+                const badge = this.querySelector('#unread-count');
+                const count = isHead ? (data.total || 0) : (data.count || 0);
+                if (badge) { 
+                    if (count > 0) {
+                        badge.innerText = count > 99 ? '99+' : count;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            }
+        } catch (err) { console.error("Badge Error:", err); }
+    }
+
+    setupProfileLogic(user) {
+        const trigger = this.querySelector('#profile-menu-trigger');
+        let dropdown = document.getElementById('global-custom-dropdown');
+
+        if (!dropdown) {
+            const dropdownHtml = `
+            <div id="global-custom-dropdown" 
+                class="hidden fixed w-44 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 origin-top-right transition-all duration-200"
+                style="z-index: 9999 !important;"> 
+                <a href="profile-edit.html" class="flex items-center px-4 py-2 text-[12px] text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-user-edit w-5 mr-2 text-indigo-500"></i> แก้ไขโปรไฟล์
+                </a>
+                <div class="border-t border-slate-100 my-1"></div>
+                <button id="header-logout-btn" class="w-full text-left flex items-center px-4 py-2 text-[12px] text-red-500 hover:bg-red-50">
+                    <i class="fas fa-sign-out-alt w-5 mr-2"></i> ออกจากระบบ
+                </button>
+            </div>`;
+            document.body.insertAdjacentHTML('afterbegin', dropdownHtml);
+            dropdown = document.getElementById('global-custom-dropdown');
+        }
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const notiDropdown = this.querySelector('#noti-dropdown');
+            if(notiDropdown) notiDropdown.classList.add('hidden');
+
+            const triggerRect = trigger.getBoundingClientRect();
+            dropdown.style.top = `${triggerRect.bottom + 10}px`; 
+            dropdown.style.right = `${window.innerWidth - triggerRect.right}px`;
+            dropdown.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => dropdown.classList.add('hidden'));
+
+        const logoutBtn = dropdown.querySelector('#header-logout-btn');
+        logoutBtn.onclick = () => logout();
+    }
+}
+
+if (!customElements.get('app-header')) {
+    customElements.define('app-header', AppHeader);
+}
+
+// --- App Navbar (เมนูล่าง) ---
+class AppNavbar extends HTMLElement {
+    connectedCallback() {
+        const user = getUser();
+        if (!user) return;
+
+        const isHead = user.RoleID === 1;
+        
+        // **Menu Config:** กำหนดรายการเมนูแยกตาม Role
+        const headMenus = [
+            { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' },
+            { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' },
+            { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' },
+            { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' },
+            { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' },
+            { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' }
+        ];
+
+        const nurseMenus = [
+            { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' },
+            { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' },
+            { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' },
+            { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' },
+            { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' },
+        ];
+
+        const menus = isHead ? headMenus : nurseMenus;
+        
+        const activeColor = isHead ? 'text-violet-600' : 'text-indigo-600';
+        const barColor = isHead ? 'bg-violet-600' : 'bg-indigo-600';
+
+        const menuHtml = menus.map(m => {
+            const isActive = window.location.href.includes(m.href);
+            return `
+            <a href="${m.href}" class="flex flex-col items-center justify-center relative w-full h-full group transition-all duration-200 ${isActive ? activeColor : 'text-gray-400 hover:text-gray-600'}">
+                ${isActive ? `<div class="absolute top-0 w-8 h-1 ${barColor} rounded-b-lg shadow-sm"></div>` : ''}
+                <i class="fas ${m.icon} text-xl mb-1 transition-transform group-hover:-translate-y-1"></i>
+                <span class="text-[10px] font-medium">${m.label}</span>
+            </a>
+            `;
+        }).join('');
+
+        this.innerHTML = `
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+            <div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">
+                ${menuHtml}
+            </div>
+        </nav>`;
+    }
+}
+customElements.define('app-navbar', AppNavbar);
+
+
+// --- Date Picker Component ---
+class AppDatePicker extends HTMLElement {
+    connectedCallback() {
+        const placeholder = this.getAttribute('placeholder') || 'เลือกวันที่...';
+        const id = this.getAttribute('input-id') || 'datepicker-' + Math.random().toString(36).substr(2, 9);
+        
+        this.innerHTML = `
+            <div class="relative group">
+                <input type="text" id="${id}" class="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pl-11 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition outline-none cursor-pointer" placeholder="${placeholder}">
+                <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors pointer-events-none"></i>
+            </div>`;
+        
+        setTimeout(() => {
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr(`#${id}`, {
+                    locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: true,
+                    onChange: (selectedDates, dateStr) => {
+                        this.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
+                    }
+                });
+            }
+        }, 0);
+    }
+}
+customElements.define('app-date-picker', AppDatePicker);
+
+
+// =========================================================
+// 3. AUTO LOGOUT SYSTEM (Global Idle Timeout - 15 Minutes)
+// =========================================================
+(function() {
+    const IDLE_TIMEOUT = 15 * 60 * 1000; // 15 นาที
+    let idleTimer;
+
+    const performLogout = () => {
+        const user = getUser();
+        if (!user) return;
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'หมดเวลาการใช้งาน',
+                text: 'คุณไม่ได้ทำรายการเกิน 15 นาที ระบบจะนำคุณกลับไปหน้า Login',
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            }).then(() => {
+                logout();
+            });
+        } else {
+            alert('หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่');
+            logout();
+        }
+    };
+
+    const resetTimer = () => {
+        if (!localStorage.getItem('user')) return;
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(performLogout, IDLE_TIMEOUT);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(evt => {
+        document.addEventListener(evt, resetTimer, { passive: true });
+    });
+    
+    resetTimer();
+})();
+
+// =========================================================
+// 4. HELPER COMPONENTS
+// =========================================================
+function LogoComponent() {
+    return `
+        <div class="logo">
+            <img src="logo.png" alt="Logo" class="logo-img"> 
+            <span class="logo-text">AUTONURSESHIFT</span>
+        </div>
+    `;
+}
+
+function SuccessCardComponent(props) {
+    const { title, message, btnText, btnLink } = props;
+    const messageHtml = message.map(text => `<span class="sub-text">${text}</span>`).join('');
+
+    return `
+        <div class="success-box fade-in">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>${title}</h2>
+            <div class="text-wrapper">
+                ${messageHtml}
+            </div>
+            <a href="${btnLink}" class="goto-login-btn">${btnText}</a>
+        </div>
+    `;
+}
+
+// =========================================================
+// 5. SMART NOTIFICATION SYSTEM (Fixed: Global Interval)
+// =========================================================
+
+function showSmartToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'notification-toast'; 
+    toast.innerHTML = `
+        <div style="margin-right: 15px; font-size: 20px;">🔔</div>
+        <div>
+            <strong style="display: block; color: #333;">แจ้งเตือนใหม่</strong>
+            <small style="color: #666;">${message}</small>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 500);
+    }, 5000);
+}
+
+function initNotificationSystem(userId, token) {
+    // [Fix] ฆ่า Timer ตัวเก่าทิ้งเสมอ ก่อนเริ่มตัวใหม่ (ป้องกันการรันซ้อน)
+    if (window.notificationInterval) {
+        clearInterval(window.notificationInterval);
+        window.notificationInterval = null;
+    }
+
+    let lastCount = 0;
+    let isFirstRun = true;
+
+    const checkNoti = () => {
+        // [Fix] ดึง Token ล่าสุดเสมอ
+        const currentToken = localStorage.getItem('token');
+        
+        // [Fix] ถ้าไม่มี Token (เช่น Logout แล้ว) ให้หยุดทำงานทันที
+        if (!currentToken) {
+            if (window.notificationInterval) {
+                console.log("No token detected: Stopping notification system");
+                clearInterval(window.notificationInterval);
+                window.notificationInterval = null;
+            }
+            return;
+        }
+
+        fetch(`${API_BASE}/api/notifications/unread-count/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${currentToken}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => {
+            // [Fix] ถ้าเจอ 401/403 (Token หมดอายุ) ให้สั่งหยุดถาวร
+            if (res.status === 401 || res.status === 403) {
+                console.warn("Token Invalid (403/401): Stopping Notification Polling");
+                if (window.notificationInterval) {
+                    clearInterval(window.notificationInterval);
+                    window.notificationInterval = null;
+                }
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data || !data.success) return;
+
+            const currentCount = data.count;
+
+            if (!isFirstRun && currentCount > lastCount) {
+                showSmartToast("มีคำขอใหม่ส่งถึงคุณ! กรุณาเช็กที่เมนูแจ้งเตือน");
+                if (typeof refreshNotificationUI === 'function') {
+                    refreshNotificationUI(currentCount);
+                }
+            }
+
+            const badge = document.getElementById('unread-count');
+            if (badge) {
+                badge.innerText = currentCount > 99 ? '99+' : currentCount;
+                if (currentCount > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            lastCount = currentCount;
+            isFirstRun = false;
+        })
+        .catch(err => {
+            console.error("Notification Polling Error:", err);
+            // Network Error ชั่วคราวปล่อยให้ลองใหม่ได้ ไม่ต้องหยุด Loop
+        });
+    };
+
+    // เริ่ม Timer และเก็บ ID ใส่ window
+    console.log("Starting Notification System...");
+    window.notificationInterval = setInterval(checkNoti, 20000); // เช็กทุก 20 วินาที
+    checkNoti(); // รันครั้งแรกทันที
+}
+
+// เรียกใช้งานอัตโนมัติ (Self-Invoking)
+(function() {
+    const user = getUser();
+    const token = localStorage.getItem('token');
+    
+    // ตรวจสอบ user และ token ให้แน่ใจก่อนเริ่มระบบ
+    if (user && user.UserID && token) {
+        initNotificationSystem(user.UserID, token);
+    } else {
+        // ถ้าไม่มี User ให้เคลียร์ Timer ทิ้ง (กันเหนียว)
+        if (window.notificationInterval) {
+            clearInterval(window.notificationInterval);
+            window.notificationInterval = null;
+        }
+    }
+    
+})();
