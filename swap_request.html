@@ -555,7 +555,50 @@
                 }).join('');
             } catch(e) { }
         }
+        // เพิ่มฟังก์ชันนี้ลงไปในส่วน <script>
+        async function openRequestModal(targetUserId, targetName, targetScheduleId) {
+            const token = localStorage.getItem('token');
+            const modal = document.getElementById('requestModal');
+            const content = document.getElementById('requestModalContent');
+            const myShiftSelect = document.getElementById('my-offer-shift');
 
+            // 1. ใส่ข้อมูลผู้ที่เราจะไปขอแลกด้วยลงใน Modal
+            document.getElementById('modal-target-name').innerText = targetName;
+            document.getElementById('modal-target-user-id').value = targetUserId;
+            document.getElementById('modal-target-schedule-id').value = targetScheduleId;
+            document.getElementById('modal-reason').value = ''; // ล้างเหตุผลเก่า
+
+            // 2. แสดง Modal (ใส่ Animation)
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.replace('scale-90', 'scale-100');
+            }, 10);
+
+            // 3. โหลด "เวรของฉัน" มาใส่ใน Dropdown เพื่อให้เลือกว่าจะเอาเวรไหนไปแลก
+            myShiftSelect.innerHTML = '<option value="">กำลังโหลดเวรของคุณ...</option>';
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (data.success && data.results.length > 0) {
+                    myShiftSelect.innerHTML = '<option value="">-- เลือกเวรของคุณที่จะนำไปแลก --</option>';
+                    data.results.forEach(shift => {
+                        const dateDisplay = moment(shift.Nurse_Date).add(543, 'years').format('D MMM YY');
+                        myShiftSelect.insertAdjacentHTML('beforeend', 
+                            `<option value="${shift.ScheduleID}">${dateDisplay} - ${shift.ShiftName}</option>`
+                        );
+                    });
+                } else {
+                    myShiftSelect.innerHTML = '<option value="">ไม่พบเวรที่สามารถแลกได้</option>';
+                }
+            } catch (err) {
+                myShiftSelect.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
+            }
+        }
         // Modals Management (ปิด/เปิด)
         function closeRequestModal() { const modal = document.getElementById('requestModal'); const content = document.getElementById('requestModalContent'); modal.classList.add('opacity-0'); content.classList.replace('scale-100', 'scale-90'); setTimeout(() => modal.classList.add('hidden'), 300); }
         function closePostModal() { const modal = document.getElementById('postModal'); const content = document.getElementById('postModalContent'); modal.classList.add('opacity-0'); content.classList.replace('scale-100', 'scale-90'); setTimeout(() => modal.classList.add('hidden'), 300); }
