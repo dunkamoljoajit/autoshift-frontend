@@ -295,21 +295,23 @@
 
     // --- ส่วนที่ 1: ฟังก์ชัน Global (ต้องอยู่นอกสุดเพื่อให้ HTML เรียกใช้ได้) ---
 
-    // ฟังก์ชันเปิด Modal และดึงเวรของเรามาให้เลือกแลก
+    // แก้ไขฟังก์ชันเปิด Modal ให้กรองเวรที่เลือกแลกได้เท่านั้น
     async function openRequestModal(targetId, targetName, scheduleId) {
         const token = localStorage.getItem('token');
         const modal = document.getElementById('requestModal');
         const content = document.getElementById('requestModalContent');
         const select = document.getElementById('my-offer-shift');
 
-        // เซ็ตข้อมูลเบื้องต้น
+        // 1. ดึงข้อมูลวันที่ของพยาบาลที่เราจะไปแลกด้วย (Target Date)
+        // โดยการหาจากพารามิเตอร์หรือดึงจาก DOM ที่เราเก็บไว้
+        const targetDateInput = document.getElementById('searchDate').value; 
+
         document.getElementById('modal-target-name').innerText = targetName;
         document.getElementById('modal-target-user-id').value = targetId;
         document.getElementById('modal-target-schedule-id').value = scheduleId;
         document.getElementById('modal-reason').value = '';
-        select.innerHTML = '<option value="">กำลังโหลดเวรของคุณ...</option>';
+        select.innerHTML = '<option value="">กำลังตรวจสอบเวรที่แลกได้...</option>';
 
-        // แสดง Modal
         modal.classList.remove('hidden');
         setTimeout(() => { 
             modal.classList.remove('opacity-0'); 
@@ -317,76 +319,34 @@
         }, 10);
 
         try {
+            // 2. ดึงเวรทั้งหมดของเรา
             const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
                 headers: { 'Authorization': `Bearer ${token}` } 
             });
             const data = await res.json();
+            
             if (data.success && data.results.length > 0) {
-                select.innerHTML = '<option value="">-- เลือกเวรของคุณที่จะแลก --</option>' + 
-                    data.results.map(s => `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}</option>`).join('');
-            } else { select.innerHTML = '<option value="">คุณไม่มีเวรในอนาคตที่แลกได้</option>'; }
-        } catch (err) { select.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>'; }
-    }
+                // 3. กรองเฉพาะเวรในวันที่ "พยาบาลเป้าหมายว่าง" เท่านั้น
+                // (ในที่นี้คือเวรของเราที่ "ไม่ได้" ตรงกับวันที่พยาบาลคนนั้นเข้าเวรอยู่)
+                // หมายเหตุ: Logic นี้จะแสดงเวรทั้งหมดของคุณ ยกเว้นเวรที่อยู่ในวันที่เรากำลังจะไปแลก
+                const availableShifts = data.results.filter(s => {
+                    const myShiftDate = moment(s.Nurse_Date).format('YYYY-MM-DD');
+                    return myShiftDate !== targetDateInput; 
+                });
 
-    function closeRequestModal() { 
-        const modal = document.getElementById('requestModal'); 
-        const content = document.getElementById('requestModalContent');
-        modal.classList.add('opacity-0'); 
-        content.classList.replace('scale-100', 'scale-90');
-        setTimeout(() => modal.classList.add('hidden'), 300); 
-    }
-
-    async function respondSwap(id, act) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/swaps/respond`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
-            body: JSON.stringify({ swapId: id, action: act, responderId: currentUser.UserID })
-        });
-        const data = await res.json();
-        if(data.success) {
-            Swal.fire('เรียบร้อย', act === 'approve' ? 'รอหัวหน้าพยาบาลอนุมัติขั้นสุดท้าย' : 'ปฏิเสธแล้ว', 'success');
-            fetchIncomingRequests();
-            if(currentUser.RoleID === 1) fetchPendingApprovals();
-        }
-    }
-
-    // --- ส่วนที่ 2: ตั้งค่าเมื่อโหลดหน้า ---
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const userStr = localStorage.getItem('user');
-        const token = localStorage.getItem('token');
-
-        if(!userStr || !token) { window.location.href = 'login.html'; return; }
-        currentUser = JSON.parse(userStr);
-        
-        // จัดการพื้นหลังและส่วนของหัวหน้า
-        if (currentUser.RoleID === 1) {
-            document.body.style.backgroundImage = "url('background01.png')"; 
-            const approvalSection = document.getElementById('head-nurse-approval-section');
-            if (approvalSection) {
-                approvalSection.classList.remove('hidden');
-                fetchPendingApprovals();
+                if(availableShifts.length > 0) {
+                    select.innerHTML = '<option value="">-- เลือกเวรของคุณที่จะแลก --</option>' + 
+                        availableShifts.map(s => `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}</option>`).join('');
+                } else {
+                    select.innerHTML = '<option value="">ไม่มีเวรที่สามารถแลกได้ในขณะนี้</option>';
+                }
+            } else { 
+                select.innerHTML = '<option value="">คุณไม่มีเวรในระบบ</option>'; 
             }
-        } else {
-            document.body.style.backgroundImage = "url('background06.png')";
+        } catch (err) { 
+            select.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>'; 
         }
-
-        // ตั้งค่า Flatpickr
-        flatpickr("#searchDate", { locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: "true" });
-        flatpickr("#post-desired-date", { locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: "true" });
-        flatpickr("#edit-desired-date", { locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: "true" });
-
-        document.getElementById('results-area').classList.remove('opacity-0');
-        
-        fetchIncomingRequests();
-        fetchMyActivePost(); 
-
-        document.getElementById('searchForm').addEventListener('submit', handleSearch);
-        document.getElementById('sendRequestForm').addEventListener('submit', handleSendRequest);
-        document.getElementById('createPostForm').addEventListener('submit', handleCreatePost);
-        document.getElementById('editPostForm').addEventListener('submit', handleUpdatePost);
-    });
+    }
 
     // --- ส่วนที่ 3: Logic การค้นหาและกรองเวรที่แลกได้ ---
 
