@@ -503,19 +503,79 @@
             position: "auto" 
         });
     }
-    function openPasswordModal() {
-        Swal.fire({
-            title: 'เปลี่ยนรหัสผ่าน',
-            text: 'คุณต้องการไปที่หน้าโปรไฟล์เพื่อเปลี่ยนรหัสผ่านใช่หรือไม่?',
-            icon: 'question',
+    async function openPasswordModal() {
+        const { value: formValues } = await Swal.fire({
+            title: 'เปลี่ยนรหัสผ่านใหม่',
+            html:
+                '<div class="text-left">' +
+                '<label class="text-xs text-gray-400">รหัสผ่านปัจจุบัน</label>' +
+                '<input id="swal-old-pass" class="swal2-input" placeholder="Old Password" type="password">' +
+                '<label class="text-xs text-gray-400">รหัสผ่านใหม่</label>' +
+                '<input id="swal-new-pass" class="swal2-input" placeholder="New Password" type="password">' +
+                '<label class="text-xs text-gray-400">ยืนยันรหัสผ่านใหม่</label>' +
+                '<input id="swal-confirm-pass" class="swal2-input" placeholder="Confirm New Password" type="password">' +
+                '</div>',
+            focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'ไปหน้าโปรไฟล์',
-            cancelButtonText: 'ยกเลิก'
-        }).then((result) => {
-            if (result.isConfirmed) window.location.href = 'profile.html';
-        });
-    }
+            confirmButtonText: 'บันทึก',
+            cancelButtonText: 'ยกเลิก',
+            preConfirm: () => {
+                const oldPass = document.getElementById('swal-old-pass').value;
+                const newPass = document.getElementById('swal-new-pass').value;
+                const confirmPass = document.getElementById('swal-confirm-pass').value;
 
+                if (!oldPass || !newPass || !confirmPass) {
+                    Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                    return false;
+                }
+                if (newPass === oldPass) {
+                    Swal.showValidationMessage('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
+                    return false;
+                }
+                if (newPass !== confirmPass) {
+                    Swal.showValidationMessage('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
+                    return false;
+                }
+                if (newPass.length < 6) {
+                    Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+                    return false;
+                }
+                return { oldPass, newPass };
+            }
+        });
+
+        if (formValues) {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API_URL}/api/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        oldPassword: formValues.oldPass,
+                        newPassword: formValues.newPass
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'สำเร็จ',
+                        text: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    throw new Error(data.message || 'รหัสผ่านเดิมไม่ถูกต้อง');
+                }
+            } catch (err) {
+                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+            }
+        }
+    }
     function checkHeadNurseRole() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user || user.RoleID !== 1) {
