@@ -267,71 +267,75 @@
 
     // บันทึกการตั้งค่า Quota และ Deadline
     async function saveSettings(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-save-settings');
-    const originalHTML = btn.innerHTML;
+        e.preventDefault();
+        const btn = document.getElementById('btn-save-settings');
+        const originalHTML = btn.innerHTML;
 
-    // 1. ระหว่างประมวลผล ให้กดปุ่มไม่ได้ก่อน
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+        // เริ่มต้นบันทึก: ปิดปุ่มชั่วคราวเพื่อกันการกดซ้ำระหว่างโหลด
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
 
-    const payload = {
-        morning: document.getElementById('quotaMorning').value,
-        afternoon: document.getElementById('quotaAfternoon').value,
-        night: document.getElementById('quotaNight').value,
-        deadline: document.getElementById('deadlineDate').value
-    };
+        const payload = {
+            morning: document.getElementById('quotaMorning').value,
+            afternoon: document.getElementById('quotaAfternoon').value,
+            night: document.getElementById('quotaNight').value,
+            deadline: document.getElementById('deadlineDate').value
+        };
 
-    try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/api/admin/save-settings`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            // 2. เมื่อบันทึกสำเร็จ ให้สั่งเปิดระบบทันทีโดยไม่ต้องรอให้หัวหน้ากดเอง
-            const toggleRes = await fetch(`${API_URL}/api/admin/toggle-window`, { 
-                method: 'POST', 
-                headers: {
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${token}`
-                }, 
-                body: JSON.stringify({ status: 'Open' }) 
+        try {
+            const token = localStorage.getItem('token');
+            
+            // 1. ส่งข้อมูลบันทึก Settings
+            const res = await fetch(`${API_URL}/api/admin/save-settings`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify(payload)
             });
-            const toggleData = await toggleRes.json();
+            const data = await res.json();
+            
+            if (data.success) {
+                // 2. สั่งเปิดระบบ (Open) ทันที
+                await fetch(`${API_URL}/api/admin/toggle-window`, { 
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${token}`
+                    }, 
+                    body: JSON.stringify({ status: 'Open' }) 
+                });
 
-            if (toggleData.success) {
+                // แสดงแจ้งเตือนสำเร็จ
                 Swal.fire({ 
                     icon: 'success', 
-                    title: 'บันทึกและเปิดระบบแล้ว', 
-                    text: 'ขณะนี้พยาบาลสามารถส่งข้อจำกัดได้แล้ว', 
-                    timer: 2000, 
+                    title: 'สำเร็จ', 
+                    text: 'บันทึกและเปิดระบบเรียบร้อยแล้ว', 
+                    timer: 1500, 
                     showConfirmButton: false 
                 });
-                
-                // 3. อัปเดต UI (ปุ่ม Open จะเขียว, ปฏิทินจะเด้ง)
+
+                // 3. อัปเดต UI หน้าจอ (ปุ่ม Open จะติดสถานะทันที)
                 loadAllData(); 
                 
-                // 4. บังคับให้ปุ่มบันทึกกดไม่ได้ถาวรจนกว่าจะโหลดหน้าใหม่ (หรือตาม Logic ของคุณ)
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
-                btn.classList.replace('btn-primary', 'bg-gray-400'); // เปลี่ยนสีปุ่มให้ดูว่ากดไม่ได้
+                // 4. บังคับปิดปุ่มถาวร
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fas fa-check"></i> บันทึกแล้ว';
+                btn.style.backgroundColor = '#9ca3af'; // เปลี่ยนเป็นสีเทาให้ดูว่ากดไม่ได้แล้ว
+                btn.style.cursor = 'not-allowed';
+
+            } else {
+                throw new Error(data.message || 'บันทึกไม่สำเร็จ');
             }
-        } else {
-            throw new Error(data.message || 'บันทึกไม่สำเร็จ');
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: err.message });
+            // ถ้าเกิด Error ถึงจะยอมให้ปุ่มกลับมาเปิดเพื่อให้กดใหม่ได้
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
         }
-    } catch (err) {
-        Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: err.message });
-        btn.disabled = false; // ถ้า Error ให้กลับมากดได้ใหม่
-        btn.innerHTML = originalHTML;
+        // *** สังเกตว่าผมเอา btn.disabled = false ออกจากส่วนท้ายแล้ว เพื่อไม่ให้มันคืนค่าหลังทำงานเสร็จ ***
     }
-}
 
     // เปิด/ปิด ระบบรับข้อมูล
     async function togglePeriod(status) {
