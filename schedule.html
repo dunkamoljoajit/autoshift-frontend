@@ -100,6 +100,12 @@
             font-size: 0.9rem !important;
             min-width: 80px;
         }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(6, 1fr); /* ล็อกไว้ 6 แถว ให้ความสูงเท่ากันทุกเดือน */
+            height: 400px; /* หรือกำหนดความสูงคงที่ไปเลย */
+        }
 
         @media (min-width: 768px) {
             .glass-panel {
