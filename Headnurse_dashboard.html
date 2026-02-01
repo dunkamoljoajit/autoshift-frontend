@@ -271,8 +271,8 @@
             const settings = await setRes.json();
             const status = await statRes.json();
 
+            // 1. นำค่าเดิมมาใส่ในช่อง Input
             if(settings.success && settings.settings) {
-                // ... (โค้ดดึงค่า morning, afternoon, night เดิมของคุณ) ...
                 document.getElementById('quotaMorning').value = settings.settings.morning || 0;
                 document.getElementById('quotaAfternoon').value = settings.settings.afternoon || 0;
                 document.getElementById('quotaNight').value = settings.settings.night || 0;
@@ -282,18 +282,21 @@
                 }
             }
 
-            // --- จุดสำคัญ: เช็คสถานะเพื่อล็อคปุ่มตอนรีเฟรชหน้า ---
+            // 2. อัปเดต UI ส่วน Open/Closed
             updatePeriodUI(status.isOpen);
-            
+
+            // --- 3. จุดที่ต้องแก้: บังคับล็อคปุ่มทันทีที่โหลดเสร็จ ---
             const btnSave = document.getElementById('btn-save-settings');
-            if (status.isOpen) {
-                // ถ้าสถานะเป็น Open (บันทึกไปแล้ว) ให้ล็อคปุ่มบันทึกทันทีที่โหลดหน้า
+            
+            // เช็คว่าระบบเปิด (Open) อยู่หรือไม่ 
+            // ถ้า status.isOpen เป็น true แสดงว่าบันทึกไปแล้ว ให้ล็อคปุ่มทันที
+            if (status.isOpen === true) {
                 btnSave.disabled = true;
                 btnSave.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
                 btnSave.style.cursor = 'default';
                 btnSave.style.pointerEvents = 'none';
             } else {
-                // ถ้ายังไม่เปิดระบบ ให้ปุ่มกดได้ปกติ
+                // ถ้ายังไม่เปิด ให้ปุ่มกลับมาเป็นปกติ
                 btnSave.disabled = false;
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
                 btnSave.style.cursor = 'pointer';
