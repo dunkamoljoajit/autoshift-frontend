@@ -150,7 +150,6 @@
             const list = document.getElementById('notificationList');
             const empty = document.getElementById('emptyState');
             
-            // เก็บการ์ด Admin (Pending) ไว้ แล้วล้างรายการแจ้งเตือนปกติ
             const adminCards = Array.from(list.querySelectorAll('[id^="admin-card-"]'));
             list.innerHTML = '';
             adminCards.forEach(card => list.appendChild(card));
@@ -162,8 +161,19 @@
             empty.classList.add('hidden');
 
             data.forEach((noti, index) => {
-                const info = noti.info || '';
+                let info = noti.info || '';
                 const title = noti.Title || 'แจ้งเตือน';
+                
+                // ✅ [ปรับปรุง] ค้นหาวันที่ในรูปแบบยาวภาษาอังกฤษและเปลี่ยนเป็นภาษาไทยที่อ่านง่าย
+                // ดักจับรูปแบบ Sat Feb 07 2026...
+                const longDateRegex = /[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{2}\s\d{4}/g;
+                info = info.replace(longDateRegex, (match) => {
+                    return moment(match).format('D MMM YY'); // เช่น 7 ก.พ. 69
+                });
+                
+                // ลบข้อความส่วนเกิน (00:00:00 GMT...) ออกเพื่อให้สั้นลง
+                info = info.replace(/00:00:00 GMT\+0700 \(Indochina Time\)/g, '');
+
                 const isSuccess = info.includes('สำเร็จ') || info.includes('เรียบร้อย') || info.includes('อนุมัติแล้ว');
                 const isActionable = (info.includes('รอ') || info.includes('ขอ')) && !isSuccess;
                 
@@ -174,8 +184,8 @@
 
                 const html = `
                 <div class="card-enter bg-white rounded-2xl border p-4 shadow-sm mb-4 ${isActionable ? 'clickable-card border-indigo-500 bg-indigo-50/30' : 'border-slate-100'}" 
-                     style="animation-delay: ${index * 0.05}s"
-                     onclick="${isActionable ? `handleActionRedirect('${info}')` : ''}">
+                    style="animation-delay: ${index * 0.05}s"
+                    onclick="${isActionable ? `handleActionRedirect('${noti.info}')` : ''}">
                     <div class="flex gap-4">
                         <div class="w-12 h-12 rounded-2xl ${theme.bg} flex-shrink-0 flex items-center justify-center shadow-sm">
                             <i class="fas ${theme.icon} ${theme.color} text-lg"></i>
@@ -220,7 +230,7 @@
                             </div>
                             <div class="space-y-2 mb-4">
                                 <p class="text-sm text-slate-700"><b>${item.SellerName}</b> ขายเวรให้ <b>${item.BuyerName}</b></p>
-                                <p class="text-xs text-slate-500">วันที่เวร: ${moment(item.ShiftDate).format('D MMM YYYY')} (${item.ShiftName})</p>
+                                <p class="text-xs text-slate-500"><i class="far fa-calendar-alt mr-1"></i> วันที่เวร: ${moment(item.ShiftDate).format('ddddที่ D MMM YY')} (${item.ShiftName})</p>
                             </div>
                             <div id="admin-actions-${item.TransactionID}" class="flex gap-2">
                                 <button onclick="adminAction(${item.TransactionID}, 'reject')" class="flex-1 px-4 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-all">ปฏิเสธ</button>
