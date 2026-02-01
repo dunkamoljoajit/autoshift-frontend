@@ -271,35 +271,39 @@
             const settings = await setRes.json();
             const status = await statRes.json();
 
-            // นำค่า Quota มาแสดงใน Input
             if(settings.success && settings.settings) {
-                const m = document.getElementById('quotaMorning');
-                const a = document.getElementById('quotaAfternoon');
-                const n = document.getElementById('quotaNight');
-                const d = document.getElementById('deadlineDate');
-
-                if(m) m.value = settings.settings.morning || 0;
-                if(a) a.value = settings.settings.afternoon || 0;
-                if(n) n.value = settings.settings.night || 0;
+                // ... (โค้ดดึงค่า morning, afternoon, night เดิมของคุณ) ...
+                document.getElementById('quotaMorning').value = settings.settings.morning || 0;
+                document.getElementById('quotaAfternoon').value = settings.settings.afternoon || 0;
+                document.getElementById('quotaNight').value = settings.settings.night || 0;
                 
-                // อัปเดต Flatpickr ถ้ามีค่า Deadline
-                if(d && settings.settings.deadline) {
-                    d._flatpickr.setDate(settings.settings.deadline);
+                if(settings.settings.deadline) {
+                    document.getElementById('deadlineDate')._flatpickr.setDate(settings.settings.deadline);
                 }
             }
 
-            // อัปเดตสถานะ Open/Closed UI
+            // --- จุดสำคัญ: เช็คสถานะเพื่อล็อคปุ่มตอนรีเฟรชหน้า ---
             updatePeriodUI(status.isOpen);
             
-            // แก้ไข Error ที่เคยหา 'status-bar-text' ไม่เจอ โดยการเช็คก่อนใช้
-            const statusBar = document.getElementById('status-bar-text');
-            if(statusBar) statusBar.innerText = "เชื่อมต่อระบบเรียบร้อย";
+            const btnSave = document.getElementById('btn-save-settings');
+            if (status.isOpen) {
+                // ถ้าสถานะเป็น Open (บันทึกไปแล้ว) ให้ล็อคปุ่มบันทึกทันทีที่โหลดหน้า
+                btnSave.disabled = true;
+                btnSave.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
+                btnSave.style.cursor = 'default';
+                btnSave.style.pointerEvents = 'none';
+            } else {
+                // ถ้ายังไม่เปิดระบบ ให้ปุ่มกดได้ปกติ
+                btnSave.disabled = false;
+                btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
+                btnSave.style.cursor = 'pointer';
+                btnSave.style.pointerEvents = 'auto';
+            }
 
         } catch(e) { 
             console.error("Load Data Error:", e); 
         }
     }
-
     // บันทึกการตั้งค่า Quota และ Deadline
     async function saveSettings(e) {
         e.preventDefault();
