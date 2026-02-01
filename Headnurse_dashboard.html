@@ -47,6 +47,22 @@
             cursor: default;
             box-shadow: none !important;
         }
+        /* บังคับให้ช่องวันที่ (รวมถึงตัวที่ Flatpickr สร้างใหม่) ยาวเต็ม 100% */
+        #date-container, 
+        .flatpickr-input.form-control, 
+        .flatpickr-mobile {
+            width: 100% !important;
+        }
+
+        /* ปรับแต่ง input ที่ Flatpickr สร้างขึ้นมาใหม่ (altInput) ให้ยาวเท่ากัน */
+        .flatpickr-calendar.static {
+            width: 100% !important;
+        }
+
+        /* บังคับให้กล่อง input ของ Flatpickr ขยายเต็มพื้นที่ container */
+        #date-container .flatpickr-wrapper {
+            width: 100% !important;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
