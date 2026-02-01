@@ -99,6 +99,7 @@
         async function loadDailyData() {
             currentTargetDate = document.getElementById('target-date').value;
             const token = localStorage.getItem('token');
+            console.log("กำลังดึงข้อมูลของวันที่:", currentTargetDate); // เช็คตรงนี้
             
             try {
                 const res = await fetch(`${API_URL}/api/admin/daily-schedule?date=${currentTargetDate}`, {
