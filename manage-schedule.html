@@ -8,7 +8,10 @@
     <link href="css/style.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="lib/flatpickr.css">
     
+    <script src="lib/flatpickr.js"></script>
+    <script src="lib/th.js"></script>
     <script src="lib/sweetalert2.js"></script>
     <script src="lib/moment.js"></script>
     <script src="components.js"></script>
@@ -16,7 +19,7 @@
     <style>
         body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
         
-        /* --- Header & Control Section --- */
+        /* --- Header Section --- */
         .header-card {
             background: white;
             padding: 2rem;
@@ -38,72 +41,6 @@
             border-radius: 50%;
             z-index: 0;
             opacity: 0.6;
-        }
-
-        /* ส่วนควบคุมปฏิทินและปุ่ม (ขยายขนาดตามคำขอ) */
-        .controls-wrapper {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        .calendar-wrapper {
-            position: relative;
-            width: 240px; /* ขยายความกว้าง */
-        }
-
-        .calendar-wrapper i {
-            position: absolute;
-            left: 1.25rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #d946ef;
-            font-size: 1.2rem;
-            pointer-events: none;
-        }
-
-        #target-date {
-            width: 100%;
-            background: #f8fafc;
-            border: 2px solid #f1f5f9;
-            padding: 0.85rem 1rem 0.85rem 3.5rem; /* เพิ่ม padding ซ้ายกันไอคอนทับ */
-            border-radius: 1.25rem;
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #334155;
-            outline: none;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        #target-date:focus {
-            border-color: #d946ef;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(217, 70, 239, 0.1);
-        }
-
-        .btn-fetch {
-            background: linear-gradient(135deg, #d946ef 0%, #7c3aed 100%);
-            color: white;
-            padding: 0.85rem 2.5rem;
-            border-radius: 1.25rem;
-            font-weight: 700;
-            font-size: 1.1rem;
-            border: none;
-            box-shadow: 0 10px 25px -5px rgba(217, 70, 239, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .btn-fetch:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 15px 30px -5px rgba(217, 70, 239, 0.5);
         }
 
         /* --- Shift Board & Cards --- */
@@ -178,12 +115,12 @@
                     <p class="text-slate-400 mt-1 font-medium italic underline decoration-fuchsia-200 underline-offset-4">Daily Schedule Management</p>
                 </div>
                 
-                <div class="controls-wrapper">
-                    <div class="calendar-wrapper">
-                        <i class="fas fa-calendar-alt"></i>
-                        <input type="date" id="target-date">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div style="width: 260px;">
+                        <app-date-picker id="daily-picker" input-id="target-date" placeholder="เลือกวันที่ดูตาราง..."></app-date-picker>
                     </div>
-                    <button onclick="loadDailyData()" class="btn-fetch">
+                    
+                    <button onclick="loadDailyData()" class="bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-fuchsia-100 hover:scale-105 transition active:scale-95 flex items-center justify-center gap-2">
                         <i class="fas fa-sync-alt"></i>
                         <span>ดึงข้อมูล</span>
                     </button>
@@ -268,16 +205,31 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
-            document.getElementById('target-date').value = tomorrow;
-            loadDailyData();
+            const picker = document.getElementById('daily-picker');
             
-            // ดึงข้อมูลอัตโนมัติเมื่อเปลี่ยนวันที่
-            document.getElementById('target-date').addEventListener('change', loadDailyData);
+            // รอให้คอมโพเนนต์สร้าง input เสร็จก่อน แล้วค่อยเซตวันที่เริ่มต้น
+            setTimeout(() => {
+                const input = document.getElementById('target-date');
+                if(input && input._flatpickr) {
+                    input._flatpickr.setDate(tomorrow);
+                    loadDailyData(); // ดึงข้อมูลครั้งแรก
+                }
+            }, 100);
+
+            // ดักจับเหตุการณ์เปลี่ยนวันที่จากคอมโพเนนต์
+            picker.addEventListener('date-change', (e) => {
+                loadDailyData(); 
+            });
         });
 
         async function loadDailyData() {
-            currentTargetDate = document.getElementById('target-date').value;
+            // ดึงค่าจาก id ที่เราตั้งใน input-id ของคอมโพเนนต์
+            const dateInput = document.getElementById('target-date');
+            if(!dateInput) return;
+            
+            currentTargetDate = dateInput.value;
             const token = localStorage.getItem('token');
+            
             try {
                 const res = await fetch(`${API_URL}/api/admin/daily-schedule?date=${currentTargetDate}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
