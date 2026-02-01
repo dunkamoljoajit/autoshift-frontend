@@ -47,21 +47,20 @@
             cursor: default;
             box-shadow: none !important;
         }
-        /* บังคับให้ช่องวันที่ (รวมถึงตัวที่ Flatpickr สร้างใหม่) ยาวเต็ม 100% */
-        #date-container, 
-        .flatpickr-input.form-control, 
-        .flatpickr-mobile {
+        /* 1. บังคับให้เฉพาะช่อง Input ขยายเต็มพื้นที่ */
+        #date-container {
             width: 100% !important;
         }
 
-        /* ปรับแต่ง input ที่ Flatpickr สร้างขึ้นมาใหม่ (altInput) ให้ยาวเท่ากัน */
-        .flatpickr-calendar.static {
+        /* 2. บังคับให้ Input ที่ Flatpickr สร้างขึ้นมา (altInput) กว้างเท่าช่องด้านบน */
+        .flatpickr-input[readonly] {
             width: 100% !important;
         }
 
-        /* บังคับให้กล่อง input ของ Flatpickr ขยายเต็มพื้นที่ container */
-        #date-container .flatpickr-wrapper {
-            width: 100% !important;
+        /* 3. ล็อกขนาด "ตัวปฏิทิน" ที่เด้งลงมา ให้มีขนาดปกติ (ตามรูปภาพที่คุณส่งมา) */
+        .flatpickr-calendar {
+            width: 320px !important; /* ขนาดมาตรฐานที่ดูสวย */
+            min-width: 320px !important;
         }
     </style>
 </head>
@@ -491,7 +490,10 @@
             altInput: true, 
             altFormat: "j F Y", 
             disableMobile: true,
-            static: true // ช่วยให้การคุมความกว้างผ่าน CSS ทำได้ง่ายขึ้น
+            // เอา static: true ออก เพื่อไม่ให้ปฏิทินขยายตามความยาวช่อง Input
+            static: false, 
+            // ให้ปฏิทินแสดงผลโดยอิงจากตำแหน่งของ Input ปกติ
+            position: "auto" 
         });
     }
     function openPasswordModal() {
