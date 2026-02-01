@@ -725,6 +725,14 @@
             });
         }
     }
+    // เพิ่มฟังก์ชันนี้ลงไปท้ายไฟล์ เพื่อตรวจสอบ RoleID
+    function checkHeadNurseRole() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        // เช็คว่าถ้าไม่มีข้อมูล user ในเครื่อง หรือ RoleID ไม่ใช่ 1 (หัวหน้าพยาบาล) ให้เด้งไปหน้า login
+        if (!user || user.RoleID !== 1) {
+            window.location.href = 'login.html';
+        }
+    }
 </script>
 </body>
 </html>
