@@ -29,6 +29,24 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .approval-section { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); color: white; border-radius: 24px; }
+        /* สไตล์ปุ่มบันทึกเมื่อกดใช้งานไม่ได้ */
+        button#btn-save-settings:disabled {
+            /* คงสีเดิมไว้ (ม่วง Gradient) */
+            background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important; 
+            color: white !important;
+            
+            /* คงความมนสวยงามเหมือนเดิม */
+            border-radius: 12px !important; 
+            border: none !important;
+            
+            /* ทำให้ดูแตกต่างเล็กน้อยเพื่อให้รู้ว่า 'ทำงานเสร็จแล้ว' */
+            opacity: 0.85; 
+            
+            /* สำคัญ: ทำให้กดปุ่มไม่ได้และไม่แสดงเมาส์รูปห้ามที่ดูแข็งกระด้าง */
+            pointer-events: none; 
+            cursor: default;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -321,8 +339,7 @@
                 
                 // 4. บังคับปิดปุ่มถาวร
                 btn.disabled = true; 
-                btn.innerHTML = '<i class="fas fa-check"></i> บันทึกแล้ว';
-                btn.style.backgroundColor = '#9ca3af'; // เปลี่ยนเป็นสีเทาให้ดูว่ากดไม่ได้แล้ว
+                btn.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
                 btn.style.cursor = 'not-allowed';
 
             } else {
