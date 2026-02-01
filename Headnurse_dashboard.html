@@ -111,8 +111,10 @@
 
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">วันปิดรับข้อมูล (DEADLINE)</label>
-                        <div id="date-container" class="relative group">
-                            <input type="text" id="deadlineDate" placeholder="เลือกวันที่..." class="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pl-11 text-sm font-medium text-gray-700 focus:border-violet-500 focus:ring-4 focus:ring-violet-50 transition outline-none cursor-pointer" required data-input>
+                        <div id="date-container" class="relative group w-full">
+                            <input type="text" id="deadlineDate" placeholder="เลือกวันที่..." 
+                                class="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pl-11 text-sm font-medium text-gray-700 focus:border-violet-500 focus:ring-4 focus:ring-violet-50 transition outline-none cursor-pointer" 
+                                required data-input>
                             <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-violet-500 transition-colors pointer-events-none"></i>
                         </div>
                     </div>
@@ -340,7 +342,8 @@
                 // 4. บังคับปิดปุ่มถาวร
                 btn.disabled = true; 
                 btn.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
-                btn.style.cursor = 'not-allowed';
+                btn.style.cursor = 'default';
+                btn.style.pointerEvents = 'none';
 
             } else {
                 throw new Error(data.message || 'บันทึกไม่สำเร็จ');
