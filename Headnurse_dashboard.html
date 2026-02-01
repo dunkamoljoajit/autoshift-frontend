@@ -675,30 +675,54 @@
         });
     }
 
-    // ฟังก์ชันส่งข้อมูลไปยัง Backend
     async function savePasswordToDB(payload) {
-        Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+        // 1. แสดงสถานะกำลังโหลด
+        Swal.fire({
+            title: 'กำลังตรวจสอบข้อมูล...',
+            html: 'กรุณารอสักครู่ ระบบกำลังบันทึกรหัสผ่านใหม่',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/change-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
                 body: JSON.stringify(payload)
             });
+
             const data = await res.json();
+
             if (data.success) {
-                Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
+                // ✅ 2. แจ้งเตือนเมื่อสำเร็จ
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'เปลี่ยนรหัสผ่านสำเร็จ!',
+                    text: 'รหัสผ่านของคุณถูกอัปเดตเรียบร้อยแล้ว',
+                    confirmButtonColor: '#191970',
+                    confirmButtonText: 'ตกลง',
+                    timer: 2500, // ปิดเองใน 2.5 วินาที
+                    timerProgressBar: true
+                });
+
+                // (ทางเลือก) แนะนำให้สั่ง Logout หรือ Redirect ไปหน้า Login ใหม่เพื่อความปลอดภัย
+                // window.location.href = 'login.html'; 
+
             } else {
-                throw new Error(data.message || 'รหัสผ่านเดิมไม่ถูกต้อง');
+                // ❌ 3. แจ้งเตือนเมื่อข้อมูลไม่ถูกต้อง (เช่น รหัสเดิมผิด)
+                throw new Error(data.message || 'รหัสผ่านเดิมไม่ถูกต้อง กรุณาลองใหม่');
             }
         } catch (err) {
-            Swal.fire('ผิดพลาด', err.message, 'error');
-        }
-    }
-    function checkHeadNurseRole() {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || user.RoleID !== 1) {
-            window.location.href = 'login.html';
+            Swal.fire({
+                icon: 'error',
+                title: 'การเปลี่ยนรหัสผ่านล้มเหลว',
+                text: err.message,
+                confirmButtonColor: '#dc3545'
+            });
         }
     }
 </script>
