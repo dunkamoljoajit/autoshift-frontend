@@ -102,41 +102,41 @@
         }
 
         @media (min-width: 768px) {
-        .glass-panel {
-            /* ปรับความกว้างให้พอดี ไม่ให้ปฏิทินยืดออกข้างมากเกินไป */
-            max-width: 600px !important; 
-            margin: 2rem auto; /* ให้มีระยะห่างจากขอบบน-ล่าง */
-            padding: 1.5rem !important;
-            border-radius: 2.5rem !important;
-        }
+            .glass-panel {
+                /* ปรับความกว้างให้พอดี ไม่ให้ปฏิทินยืดออกข้างมากเกินไป */
+                max-width: 600px !important; 
+                margin: 2rem auto; /* ให้มีระยะห่างจากขอบบน-ล่าง */
+                padding: 1.5rem !important;
+                border-radius: 2.5rem !important;
+            }
 
-        /* ปรับช่องวันที่ให้มีความเป็นสี่เหลี่ยมจัตุรัสมากขึ้น */
-        .day-cell {
-            height: auto !important; 
-            aspect-ratio: 1 / 1; /* บังคับให้เป็นสี่เหลี่ยมจัตุรัส */
-            max-height: 70px; /* จำกัดความสูงไม่ให้ใหญ่เกินไป */
-            margin: 0 auto;
-            width: 100%;
-            border-radius: 18px !important;
-        }
+            /* ปรับช่องวันที่ให้มีความเป็นสี่เหลี่ยมจัตุรัสมากขึ้น */
+            .day-cell {
+                height: auto !important; 
+                aspect-ratio: 1 / 1; /* บังคับให้เป็นสี่เหลี่ยมจัตุรัส */
+                max-height: 70px; /* จำกัดความสูงไม่ให้ใหญ่เกินไป */
+                margin: 0 auto;
+                width: 100%;
+                border-radius: 18px !important;
+            }
 
-        .day-cell span {
-            font-size: 1.1rem !important;
-            font-weight: 600;
-        }
+            .day-cell span {
+                font-size: 1.1rem !important;
+                font-weight: 600;
+            }
 
-        /* ปรับระยะห่างระหว่างช่อง (Gap) ให้ดูโปร่งขึ้น */
-        #calendarGrid {
-            gap: 12px !important; 
-        }
+            /* ปรับระยะห่างระหว่างช่อง (Gap) ให้ดูโปร่งขึ้น */
+            #calendarGrid {
+                gap: 12px !important; 
+            }
 
-        /* ปรับขนาดจุดสีให้พอดี */
-        .dot {
-            width: 7px !important;
-            height: 7px !important;
-            margin-top: 4px !important;
+            /* ปรับขนาดจุดสีให้พอดี */
+            .dot {
+                width: 7px !important;
+                height: 7px !important;
+                margin-top: 4px !important;
+            }
         }
-    }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
