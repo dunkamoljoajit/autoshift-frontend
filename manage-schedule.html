@@ -2,81 +2,194 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>จัดการตารางเวรรายวัน - AUTONURSESHIFT</title>
+    
     <link href="css/style.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
+    
     <script src="lib/sweetalert2.js"></script>
     <script src="lib/moment.js"></script>
     <script src="components.js"></script>
+
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        
+        /* Layout & Background */
+        .main-container { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); min-height: 100vh; }
+
+        /* Modern Card Styling */
+        .shift-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04);
+        }
+        .shift-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+        }
+
+        /* Nurse Item Styling */
+        .nurse-item {
+            background: white;
+            border-radius: 1.25rem;
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+        }
+        .nurse-item:hover {
+            border-color: #f0abfc;
+            background: #fffaff;
+            transform: scale(1.02);
+        }
+
+        /* Form Elements */
+        #target-date {
+            background: #f8fafc;
+            border: 2px solid #f1f5f9;
+            padding: 0.6rem 1rem;
+            border-radius: 1rem;
+            font-weight: 600;
+            color: #475569;
+            outline: none;
+            transition: all 0.3s;
+        }
+        #target-date:focus {
+            border-color: #d946ef;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(217, 70, 239, 0.1);
+        }
+
+        /* Custom Button */
+        .btn-add-nurse {
+            background: #fdf4ff;
+            color: #a21caf;
+            border: 2px dashed #f0abfc;
+            border-radius: 1.25rem;
+            font-weight: 700;
+            padding: 1rem;
+            transition: all 0.3s;
+        }
+        .btn-add-nurse:hover {
+            background: #fae8ff;
+            border-style: solid;
+            color: #701a75;
+        }
+
+        /* Badge */
+        .count-badge {
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        /* Modal Animation */
+        #nurse-modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .hidden { display: none !important; }
+    </style>
 </head>
-<body class="bg-gray-50 font-sans">
+<body class="main-container">
     
     <app-header></app-header>
 
-    <main class="max-w-6xl mx-auto p-6 pb-24">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">ปรับปรุงตารางเวรรายวัน</h1>
-                <p class="text-gray-500">หัวหน้าพยาบาลสามารถเพิ่ม/ลบ หรือสลับตัวพยาบาลได้ที่นี่</p>
-            </div>
-            <div class="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border">
-                <input type="date" id="target-date" class="outline-none border-none focus:ring-0">
-                <button onclick="loadDailyData()" class="bg-fuchsia-600 text-white px-6 py-2 rounded-xl hover:bg-fuchsia-700 transition">
-                    <i class="fas fa-sync-alt mr-2"></i>ดึงข้อมูล
-                </button>
+    <main class="max-w-6xl mx-auto p-4 md:p-8 pb-32">
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-sm mb-10 border border-slate-100 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-fuchsia-50 rounded-full -mr-32 -mt-32 opacity-40"></div>
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight">ปรับปรุงตารางเวรรายวัน</h1>
+                    <p class="text-slate-400 mt-1 font-medium italic underline decoration-fuchsia-200 underline-offset-4">Daily Shift Optimization</p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    <div class="relative w-full sm:w-auto">
+                        <i class="fas fa-calendar-day absolute left-4 top-1/2 -translate-y-1/2 text-fuchsia-400"></i>
+                        <input type="date" id="target-date">
+                    </div>
+                    <button onclick="loadDailyData()" class="w-full sm:w-auto bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-fuchsia-100 hover:scale-105 transition active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-sync-alt"></i> ดึงข้อมูล
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="shift-board">
-            <div class="bg-white rounded-3xl shadow-sm border-t-8 border-yellow-400 p-6">
-                <h3 class="text-lg font-bold mb-4 flex justify-between">
-                    <span><i class="fas fa-sun text-yellow-500 mr-2"></i>กะเช้า</span>
-                    <span id="count-1" class="text-sm font-normal text-gray-400">0 คน</span>
-                </h3>
-                <div id="list-1" class="space-y-3 min-h-[100px]"></div>
-                <button onclick="openNurseModal(1)" class="w-full mt-6 py-3 border-2 border-dashed rounded-2xl text-gray-400 hover:text-fuchsia-600 hover:border-fuchsia-300 transition">
-                    + เพิ่มพยาบาล
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8" id="shift-board">
+            <div class="shift-card p-7 border-t-[10px] border-yellow-400">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-yellow-50 text-yellow-500 rounded-2xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-sun"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-700">กะเช้า</h3>
+                    </div>
+                    <span id="count-1" class="count-badge">0 คน</span>
+                </div>
+                <div id="list-1" class="space-y-4 min-h-[150px]"></div>
+                <button onclick="openNurseModal(1)" class="btn-add-nurse w-full mt-8 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> เพิ่มเจ้าหน้าที่
                 </button>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-sm border-t-8 border-orange-400 p-6">
-                <h3 class="text-lg font-bold mb-4 flex justify-between">
-                    <span><i class="fas fa-cloud-sun text-orange-500 mr-2"></i>กะบ่าย</span>
-                    <span id="count-2" class="text-sm font-normal text-gray-400">0 คน</span>
-                </h3>
-                <div id="list-2" class="space-y-3 min-h-[100px]"></div>
-                <button onclick="openNurseModal(2)" class="w-full mt-6 py-3 border-2 border-dashed rounded-2xl text-gray-400 hover:text-fuchsia-600 hover:border-fuchsia-300 transition">
-                    + เพิ่มพยาบาล
+            <div class="shift-card p-7 border-t-[10px] border-orange-400">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-cloud-sun"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-700">กะบ่าย</h3>
+                    </div>
+                    <span id="count-2" class="count-badge">0 คน</span>
+                </div>
+                <div id="list-2" class="space-y-4 min-h-[150px]"></div>
+                <button onclick="openNurseModal(2)" class="btn-add-nurse w-full mt-8 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> เพิ่มเจ้าหน้าที่
                 </button>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-sm border-t-8 border-indigo-600 p-6">
-                <h3 class="text-lg font-bold mb-4 flex justify-between">
-                    <span><i class="fas fa-moon text-indigo-600 mr-2"></i>กะดึก</span>
-                    <span id="count-3" class="text-sm font-normal text-gray-400">0 คน</span>
-                </h3>
-                <div id="list-3" class="space-y-3 min-h-[100px]"></div>
-                <button onclick="openNurseModal(3)" class="w-full mt-6 py-3 border-2 border-dashed rounded-2xl text-gray-400 hover:text-fuchsia-600 hover:border-fuchsia-300 transition">
-                    + เพิ่มพยาบาล
+            <div class="shift-card p-7 border-t-[10px] border-indigo-500">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-moon"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-700">กะดึก</h3>
+                    </div>
+                    <span id="count-3" class="count-badge">0 คน</span>
+                </div>
+                <div id="list-3" class="space-y-4 min-h-[150px]"></div>
+                <button onclick="openNurseModal(3)" class="btn-add-nurse w-full mt-8 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> เพิ่มเจ้าหน้าที่
                 </button>
             </div>
         </div>
     </main>
 
-    <div id="nurse-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl">
-            <h2 class="text-xl font-bold mb-2">เพิ่มพยาบาลเข้ากะ</h2>
-            <p id="modal-subtitle" class="text-sm text-gray-500 mb-6"></p>
+    <div id="nurse-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="modal-content bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl scale-95">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-fuchsia-100 text-fuchsia-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-md text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">เพิ่มรายชื่อเข้ากะ</h2>
+                <p id="modal-subtitle" class="text-slate-400 font-medium mt-1"></p>
+            </div>
             
-            <div class="space-y-4">
-                <label class="block text-sm font-medium text-gray-700">เลือกพยาบาล (เฉพาะคนที่ว่าง):</label>
-                <select id="nurse-select" class="w-full border p-3 rounded-xl outline-none focus:ring-2 focus:ring-fuchsia-500"></select>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-slate-500 mb-2 ml-1 uppercase tracking-widest">เลือกพยาบาลที่ว่าง</label>
+                    <select id="nurse-select" class="w-full border-2 border-slate-100 p-4 rounded-2xl outline-none focus:border-fuchsia-500 transition-colors appearance-none bg-slate-50"></select>
+                </div>
                 
                 <div class="flex gap-3 pt-4">
-                    <button onclick="closeNurseModal()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">ยกเลิก</button>
-                    <button onclick="submitManualAdd()" class="flex-1 py-3 bg-fuchsia-600 text-white font-bold rounded-xl shadow-lg shadow-fuchsia-200 hover:bg-fuchsia-700 transition">ยืนยันเพิ่มเวร</button>
+                    <button onclick="closeNurseModal()" class="flex-1 py-4 text-slate-400 font-bold hover:bg-slate-50 rounded-2xl transition">ยกเลิก</button>
+                    <button onclick="submitManualAdd()" class="flex-1 py-4 bg-slate-800 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-700 transition">ยืนยันการเพิ่ม</button>
                 </div>
             </div>
         </div>
@@ -90,16 +203,17 @@
         let currentTargetShift = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ตั้งค่าวันที่เริ่มต้นเป็นวันพรุ่งนี้
             const tomorrow = moment().add(1, 'day').format('YYYY-MM-DD');
             document.getElementById('target-date').value = tomorrow;
             loadDailyData();
+
+            // Auto-load เมื่อเปลี่ยนวันที่
+            document.getElementById('target-date').addEventListener('change', loadDailyData);
         });
 
         async function loadDailyData() {
             currentTargetDate = document.getElementById('target-date').value;
             const token = localStorage.getItem('token');
-            console.log("กำลังดึงข้อมูลของวันที่:", currentTargetDate); // เช็คตรงนี้
             
             try {
                 const res = await fetch(`${API_URL}/api/admin/daily-schedule?date=${currentTargetDate}`, {
@@ -110,7 +224,10 @@
                 if (data.success) {
                     renderShifts(data.shifts);
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err); 
+                Swal.fire('Error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+            }
         }
 
         function renderShifts(shifts) {
@@ -120,85 +237,113 @@
                 const filtered = shifts.filter(s => s.Shift_id === shiftId);
                 
                 count.innerText = `${filtered.length} คน`;
+                
                 list.innerHTML = filtered.map(s => `
-                    <div class="group flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-transparent hover:border-fuchsia-200 hover:bg-white transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-fuchsia-100 text-fuchsia-600 rounded-full flex items-center justify-center font-bold text-xs">
+                    <div class="nurse-item group flex items-center justify-between p-4 shadow-sm">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 rounded-xl flex items-center justify-center font-black shadow-inner border border-white">
                                 ${s.FirstName.charAt(0)}
                             </div>
-                            <span class="font-medium text-gray-700">${s.FirstName} ${s.LastName}</span>
+                            <div>
+                                <p class="font-bold text-slate-700 leading-none">${s.FirstName} ${s.LastName}</p>
+                                <p class="text-[10px] text-slate-400 mt-1.5 uppercase font-bold tracking-wider">Registered Nurse</p>
+                            </div>
                         </div>
-                        <button onclick="deleteShift(${s.ScheduleID})" class="opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-600 p-2 transition">
+                        <button onclick="deleteShift(${s.ScheduleID})" class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all duration-300">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
-                `).join('') || '<p class="text-center text-gray-300 py-4 text-sm italic">ไม่มีพยาบาลในกะนี้</p>';
+                `).join('') || `
+                    <div class="flex flex-col items-center justify-center py-10 opacity-20">
+                        <i class="fas fa-user-slash text-4xl mb-2"></i>
+                        <p class="text-xs font-bold uppercase tracking-widest">No Assigned Staff</p>
+                    </div>
+                `;
             });
         }
 
         async function deleteShift(id) {
             const result = await Swal.fire({
-                title: 'ลบชื่อออกจากกะ?',
+                title: 'ยืนยันการลบชื่อ?',
+                text: "รายชื่อพยาบาลจะถูกถอนออกจากกะนี้ทันที",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'ลบเลย',
-                cancelButtonText: 'ยกเลิก'
+                confirmButtonColor: '#e11d48',
+                confirmButtonText: 'ลบข้อมูล',
+                cancelButtonText: 'ยกเลิก',
+                border: 'none',
+                customClass: { popup: 'rounded-[2rem]' }
             });
 
             if (result.isConfirmed) {
                 const token = localStorage.getItem('token');
-                await fetch(`${API_URL}/api/admin/delete-shift/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                loadDailyData();
+                try {
+                    const res = await fetch(`${API_URL}/api/admin/delete-shift/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        loadDailyData();
+                        Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1000, showConfirmButton: false });
+                    }
+                } catch(err) { console.error(err); }
             }
         }
 
         async function openNurseModal(shiftId) {
             currentTargetShift = shiftId;
-            const shiftNames = { 1: 'กะเช้า', 2: 'กะบ่าย', 3: 'กะดึก' };
-            document.getElementById('modal-subtitle').innerText = `${shiftNames[shiftId]} | ประจำวันที่ ${moment(currentTargetDate).format('D MMMM YYYY')}`;
+            const modal = document.getElementById('nurse-modal');
+            const shiftNames = { 1: 'กะเช้า ☀️', 2: 'กะบ่าย ⛅', 3: 'กะดึก 🌙' };
+            document.getElementById('modal-subtitle').innerText = `${shiftNames[shiftId]} | ${moment(currentTargetDate).format('DD MMM YYYY')}`;
             
-            // ดึงรายชื่อพยาบาลที่ Active ทั้งหมด
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/all-nurses`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            
-            const select = document.getElementById('nurse-select');
-            select.innerHTML = data.nurses.map(n => `<option value="${n.UserID}">${n.FirstName} ${n.LastName}</option>`).join('');
-            
-            document.getElementById('nurse-modal').classList.remove('hidden');
+            try {
+                const res = await fetch(`${API_URL}/api/admin/all-nurses`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                const select = document.getElementById('nurse-select');
+                select.innerHTML = '<option value="" disabled selected>เลือกรายชื่อพยาบาล...</option>' + 
+                    data.nurses.map(n => `<option value="${n.UserID}">${n.FirstName} ${n.LastName}</option>`).join('');
+                
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.querySelector('.modal-content').classList.remove('scale-95'), 10);
+            } catch (err) { console.error(err); }
         }
 
         function closeNurseModal() {
-            document.getElementById('nurse-modal').classList.add('hidden');
+            const modal = document.getElementById('nurse-modal');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
         }
 
         async function submitManualAdd() {
             const userId = document.getElementById('nurse-select').value;
-            const token = localStorage.getItem('token');
+            if(!userId) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกรายชื่อพยาบาล', 'warning');
 
-            const res = await fetch(`${API_URL}/api/admin/add-shift-manual`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    userId,
-                    date: currentTargetDate,
-                    shiftId: currentTargetShift
-                })
-            });
-            
-            const data = await res.json();
-            if (data.success) {
-                Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false });
-                closeNurseModal();
-                loadDailyData();
-            } else {
-                Swal.fire('เพิ่มไม่ได้', data.message, 'error');
-            }
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_URL}/api/admin/add-shift-manual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        userId,
+                        date: currentTargetDate,
+                        shiftId: currentTargetShift
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false });
+                    closeNurseModal();
+                    loadDailyData();
+                } else {
+                    Swal.fire('พบข้อผิดพลาด', data.message, 'error');
+                }
+            } catch (err) { console.error(err); }
         }
     </script>
 </body>
