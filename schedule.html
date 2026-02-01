@@ -390,19 +390,30 @@
             const firstDay = new Date(year, month - 1, 1).getDay();
             const daysInMonth = new Date(year, month, 0).getDate();
             const today = new Date();
+            
+            // กำหนดจำนวนช่องทั้งหมดให้เป็น 42 (6 แถว)
+            const totalCells = 42; 
 
-            for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+            for (let i = 0; i < totalCells; i++) {
+                const dayNumber = i - firstDay + 1;
+                
+                // กรณีที่เป็นช่องว่างก่อนวันที่ 1 หรือหลังวันสุดท้ายของเดือน
+                if (dayNumber <= 0 || dayNumber > daysInMonth) {
+                    grid.innerHTML += `<div class="day-cell opacity-0 pointer-events-none h-[3.5rem] md:h-16"></div>`;
+                    continue;
+                }
 
-            for(let day=1; day<=daysInMonth; day++) {
-                const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                // --- ส่วนการ Render วันที่ปกติ (โค้ดเดิมของคุณ) ---
+                const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(dayNumber).padStart(2,'0')}`;
                 const dayShifts = shiftsData.filter(s => s.Nurse_Date.startsWith(dateStr)); 
                 const hasShift = dayShifts.length > 0;
                 
-                let isToday = (day === today.getDate() && month === (today.getMonth()+1) && year === today.getFullYear());
+                let isToday = (dayNumber === today.getDate() && month === (today.getMonth()+1) && year === today.getFullYear());
                 let cellClass = `day-cell relative h-[3.5rem] md:h-16 flex flex-col items-center justify-center cursor-pointer select-none animate-pop`;
                 
                 if(isToday) cellClass += ' today';
                 else cellClass += hasShift ? ' has-shift' : ' text-slate-400';
+
                 let dotsHtml = '<div class="flex gap-0.5 justify-center mt-1">'; 
                 if(hasShift) {
                     dayShifts.forEach(shift => {
@@ -415,73 +426,16 @@
                 }
                 dotsHtml += '</div>';
 
-                const delay = (day * 0.03).toFixed(2);
+                const delay = (dayNumber * 0.02).toFixed(2);
                 const cell = document.createElement('div');
                 cell.className = cellClass;
                 cell.style.animationDelay = `${delay}s`;
-                cell.innerHTML = `<span class="text-sm font-semibold z-10">${day}</span>${dotsHtml}`;
-    
-                if(hasShift) cell.onclick = () => openDetailSheet(dayShifts, day);
+                cell.innerHTML = `<span class="text-sm font-semibold z-10">${dayNumber}</span>${dotsHtml}`;
+
+                if(hasShift) cell.onclick = () => openDetailSheet(dayShifts, dayNumber);
                 grid.appendChild(cell);
             }
         }
-
-       // --- SHEET LOGIC (Updated: 2 Buttons) ---
-        function openDetailSheet(shifts, day) {
-            const backdrop = document.getElementById('detailSheetBackdrop');
-            const sheet = document.getElementById('detailSheet');
-            const content = document.getElementById('sheetContent');
-            
-            const dateStr = `${day} ${THAI_MONTHS_FULL[currentDate.getMonth()]} ${currentDate.getFullYear()+543}`;
-            
-            let shiftsHtml = '';
-            shifts.forEach(shift => {
-                let icon = 'fa-sun';
-                let color = 'text-blue-500 bg-blue-50';
-                if(shift.ShiftName.includes('บ่าย')) { icon = 'fa-cloud-sun'; color = 'text-orange-500 bg-orange-50'; }
-                if(shift.ShiftName.includes('ดึก')) { icon = 'fa-moon'; color = 'text-purple-500 bg-purple-50'; }
-
-                const shiftStartDateTime = new Date(`${shift.Nurse_Date}T${shift.StartTime}`);
-                const isPast = new Date() > shiftStartDateTime;
-
-                // ปรับโครงสร้างภายในให้กว้างและใหญ่ขึ้น
-                shiftsHtml += `
-                    <div class="shift-card-large flex items-center gap-6 bg-white border border-slate-100 shadow-md mb-4">
-                        <div class="w-20 h-20 rounded-3xl ${color} flex items-center justify-center text-4xl shadow-inner">
-                            <i class="fas ${icon}"></i>
-                        </div>
-                        <div class="flex-1">
-                            <div class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">${shift.ShiftName}</div>
-                            <div class="time-display-large font-black text-slate-800">
-                                ${shift.StartTime.slice(0,5)} - ${shift.EndTime.slice(0,5)}
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            ${isPast ? 
-                                `<span class="px-4 py-2 font-bold text-slate-400 bg-slate-100 rounded-xl text-sm text-center">จบเวร</span>` : 
-                                `<button onclick="clickRequestTrade('${shift.ScheduleID}')" class="action-btn-large font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm">แลกเวร</button>
-                                <button onclick="openSellModal('${shift.ScheduleID}', '${dateStr}', '${shift.ShiftName}')" class="action-btn-large font-bold text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-600 hover:text-white transition shadow-sm">ขายเวร</button>`
-                            }
-                        </div>
-                    </div>
-                `;
-            });
-
-            content.innerHTML = `
-                <div class="text-center mb-8">
-                    <h2 class="text-4xl font-black text-slate-800 mb-2">${dateStr}</h2>
-                    <span class="px-4 py-1.5 bg-indigo-50 text-indigo-500 rounded-full text-sm font-bold tracking-wide uppercase">ตารางงานประจำวัน</span>
-                </div>
-                <div class="max-h-[50vh] overflow-y-auto no-scrollbar px-2">
-                    ${shiftsHtml}
-                </div>
-            `;
-            
-            backdrop.classList.remove('hidden');
-            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
-            sheet.classList.remove('translate-y-full');
-        }
-
         function closeDetailSheet() {
             const backdrop = document.getElementById('detailSheetBackdrop');
             const sheet = document.getElementById('detailSheet');
