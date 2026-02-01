@@ -505,46 +505,95 @@
     }
     async function openPasswordModal() {
         const { value: formValues } = await Swal.fire({
-            title: 'เปลี่ยนรหัสผ่านใหม่',
-            html:
-                '<div class="text-left">' +
-                '<label class="text-xs text-gray-400">รหัสผ่านปัจจุบัน</label>' +
-                '<input id="swal-old-pass" class="swal2-input" placeholder="Old Password" type="password">' +
-                '<label class="text-xs text-gray-400">รหัสผ่านใหม่</label>' +
-                '<input id="swal-new-pass" class="swal2-input" placeholder="New Password" type="password">' +
-                '<label class="text-xs text-gray-400">ยืนยันรหัสผ่านใหม่</label>' +
-                '<input id="swal-confirm-pass" class="swal2-input" placeholder="Confirm New Password" type="password">' +
-                '</div>',
+            title: '<span style="font-family: \'Kanit\'; color: #191970;">เปลี่ยนรหัสผ่านใหม่</span>',
+            html: `
+                <div class="text-left" style="font-family: 'Kanit', sans-serif; padding: 0 5px;">
+                    <div class="mb-3">
+                        <label class="text-[12px] text-gray-500 mb-1 block">รหัสผ่านปัจจุบัน</label>
+                        <input id="swal-old-pass" class="swal2-input" style="width: 100%; margin: 0;" placeholder="ระบุรหัสผ่านเดิม" type="password">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-[12px] text-gray-500 mb-1 block">รหัสผ่านใหม่</label>
+                        <input id="swal-new-pass" class="swal2-input" style="width: 100%; margin: 0;" placeholder="ระบุรหัสผ่านใหม่" type="password">
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="text-[12px] text-gray-500 mb-1 block">ยืนยันรหัสผ่านใหม่</label>
+                        <input id="swal-confirm-pass" class="swal2-input" style="width: 100%; margin: 0;" placeholder="ยืนยันรหัสผ่านใหม่อีกครั้ง" type="password">
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100" style="font-size: 11px; color: #666;">
+                        <p class="font-bold text-gray-700 mb-2"><i class="fas fa-shield-alt mr-1"></i> เงื่อนไขความปลอดภัย:</p>
+                        <ul class="space-y-1">
+                            <li id="req-len"><i class="fas fa-circle text-[8px] mr-2"></i>อย่างน้อย 8 ตัวอักษร</li>
+                            <li id="req-up"><i class="fas fa-circle text-[8px] mr-2"></i>มีอักษรพิมพ์ใหญ่ (A-Z) และพิมพ์เล็ก (a-z)</li>
+                            <li id="req-num"><i class="fas fa-circle text-[8px] mr-2"></i>มีตัวเลข (0-9) และอักขระพิเศษ (!@#$.%)</li>
+                            <li id="req-diff" style="color: #d97706;"><i class="fas fa-exclamation-triangle text-[8px] mr-2"></i>ต้องไม่ซ้ำกับรหัสผ่านเดิม</li>
+                        </ul>
+                    </div>
+                </div>
+            `,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'บันทึก',
+            confirmButtonText: 'บันทึกการเปลี่ยนรหัส',
             cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#191970',
             preConfirm: () => {
                 const oldPass = document.getElementById('swal-old-pass').value;
                 const newPass = document.getElementById('swal-new-pass').value;
                 const confirmPass = document.getElementById('swal-confirm-pass').value;
 
+                // 1. ตรวจสอบค่าว่าง
                 if (!oldPass || !newPass || !confirmPass) {
                     Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
                     return false;
                 }
+
+                // 2. ตรวจสอบ: ห้ามซ้ำรหัสเดิม
                 if (newPass === oldPass) {
                     Swal.showValidationMessage('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
                     return false;
                 }
+
+                // 3. ตรวจสอบเงื่อนไขความปลอดภัย (Complex Regex)
+                const lengthValid = newPass.length >= 8;
+                const upperValid = /[A-Z]/.test(newPass);
+                const lowerValid = /[a-z]/.test(newPass);
+                const numberValid = /[0-9]/.test(newPass);
+                const specialValid = /[!@#$%\^&\*\.]/.test(newPass);
+
+                if (!lengthValid) {
+                    Swal.showValidationMessage('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร');
+                    return false;
+                }
+                if (!upperValid || !lowerValid) {
+                    Swal.showValidationMessage('รหัสผ่านต้องมีทั้งตัวพิมพ์ใหญ่และพิมพ์เล็ก');
+                    return false;
+                }
+                if (!numberValid || !specialValid) {
+                    Swal.showValidationMessage('รหัสผ่านต้องมีทั้งตัวเลขและอักขระพิเศษ');
+                    return false;
+                }
+
+                // 4. ตรวจสอบรหัสผ่านตรงกัน
                 if (newPass !== confirmPass) {
-                    Swal.showValidationMessage('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
+                    Swal.showValidationMessage('การยืนยันรหัสผ่านไม่ตรงกัน');
                     return false;
                 }
-                if (newPass.length < 6) {
-                    Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
-                    return false;
-                }
-                return { oldPass, newPass };
+
+                return { oldPassword: oldPass, newPassword: newPass };
             }
         });
 
+        // --- ส่วนการส่งข้อมูลไปยัง API ---
         if (formValues) {
+            Swal.fire({
+                title: 'กำลังบันทึก...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
             try {
                 const token = localStorage.getItem('token');
                 const res = await fetch(`${API_URL}/api/change-password`, {
@@ -553,26 +602,28 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
-                        oldPassword: formValues.oldPass,
-                        newPassword: formValues.newPass
-                    })
+                    body: JSON.stringify(formValues)
                 });
 
                 const data = await res.json();
+
                 if (data.success) {
-                    Swal.fire({
+                    await Swal.fire({
                         icon: 'success',
-                        title: 'สำเร็จ',
-                        text: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว',
-                        timer: 2000,
-                        showConfirmButton: false
+                        title: 'เปลี่ยนรหัสผ่านสำเร็จ',
+                        text: 'ระบบได้อัปเดตรหัสผ่านใหม่ของคุณเรียบร้อยแล้ว',
+                        confirmButtonColor: '#10b981'
                     });
                 } else {
-                    throw new Error(data.message || 'รหัสผ่านเดิมไม่ถูกต้อง');
+                    throw new Error(data.message || 'รหัสผ่านปัจจุบันไม่ถูกต้อง');
                 }
             } catch (err) {
-                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: err.message,
+                    confirmButtonColor: '#ef4444'
+                });
             }
         }
     }
