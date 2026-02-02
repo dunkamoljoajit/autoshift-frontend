@@ -71,11 +71,39 @@
             background-color: rgba(255,255,255,0.9); box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
         }
 
-        /* DOTS */
-        .dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 4px; }
-        .dot-morning { background-color: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.6); }
-        .dot-afternoon { background-color: #f97316; box-shadow: 0 0 6px rgba(249, 115, 22, 0.6); }
-        .dot-night { background-color: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.6); }
+        /* สไตล์สำหรับแถบชื่อเวร (Shift Bar) */
+        .shift-bar {
+            width: 95%;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 6px;
+            margin-top: 2px;
+            border-radius: 6px;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: white;
+            line-height: 1.2;
+        }
+
+        /* สีสำหรับแต่ละเวร */
+        .bar-morning { background: linear-gradient(90deg, #3b82f6, #60a5fa); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2); }
+        .bar-afternoon { background: linear-gradient(90deg, #f97316, #fb923c); box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2); }
+        .bar-night { background: linear-gradient(90deg, #a855f7, #c084fc); box-shadow: 0 2px 4px rgba(168, 85, 247, 0.2); }
+
+        /* ปรับปรุงขนาดของ day-cell ให้รองรับแถบสี */
+        .day-cell {
+            height: auto !important;
+            min-height: 4.5rem; /* เพิ่มความสูงขึ้นเล็กน้อย */
+            padding: 4px 0;
+            justify-content: flex-start !important; /* ให้วันที่อยู่ด้านบน */
+        }
+
+        .day-cell span.date-number {
+            margin-bottom: 2px;
+            font-size: 13px;
+        }
 
         /* --- ANIMATIONS --- */
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
@@ -102,26 +130,35 @@
         }
         @media (min-width: 768px) {
             .glass-panel {
-                max-width: 82% !important; /* ปรับความกว้างให้พอดีสายตามากขึ้น */
+                max-width: 90% !important; /* ขยายความกว้างเล็กน้อยเพื่อให้แถบสีมีพื้นที่แสดงชื่อเวร */
                 margin: 0 auto;
-                padding: 1.0rem !important; /* ลด padding ลงเพื่อให้พื้นที่รวมเล็กลง */
+                padding: 1.5rem !important; 
             }
 
-            /* ปรับขนาดตัวเลขวันที่ในปฏิทินให้เล็กลง */
+            /* ปรับขนาดช่องวันที่ให้รองรับแถบสีหลายอัน */
             .day-cell {
-                height: 5rem !important; /* ลดความสูงจาก 5.5rem เหลือ 4rem */
-                border-radius: 16px !important;
+                height: auto !important; /* ให้ยืดหยุ่นตามจำนวนเวร */
+                min-height: 6rem !important; /* กำหนดค่าเริ่มต้นให้ดูสมดุล */
+                border-radius: 20px !important;
+                padding: 8px 4px !important;
             }
 
-            .day-cell span {
-                font-size: 1.1rem !important; /* ลดขนาดตัวเลขวันที่ลงเล็กน้อย */
+            .day-cell span.date-number {
+                font-size: 1.2rem !important;
+                margin-bottom: 4px;
             }
 
-            /* ปรับขนาดจุดสีให้เล็กลงนิดหน่อยเพื่อให้สมดุลกับช่องที่เล็กลง */
+            /* ปรับขนาดตัวอักษรในแถบสีให้ใหญ่ขึ้นเล็กน้อยเมื่ออยู่บนหน้าจอใหญ่ */
+            .shift-bar {
+                font-size: 10px !important;
+                padding: 3px 8px !important;
+                border-radius: 8px !important;
+                width: 90% !important;
+            }
+
+            /* ซ่อนจุด (ถ้ายังมีค้างอยู่ในโค้ดเก่า) */
             .dot {
-                width: 6px !important;
-                height: 6px !important;
-                margin-top: 6px !important;
+                display: none !important;
             }
         }
     </style>
@@ -294,6 +331,21 @@
                 <button onclick="closeSellModal()" class="w-full py-3 text-slate-400 font-bold hover:text-slate-600 transition">
                     ยกเลิก
                 </button>
+
+            <div class="mt-6 flex justify-center gap-4">
+                <div class="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-lg border border-white shadow-sm">
+                    <div class="w-4 h-2 rounded-sm bar-morning"></div>
+                    <span class="text-[10px] font-bold text-slate-600">เช้า</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-lg border border-white shadow-sm">
+                    <div class="w-4 h-2 rounded-sm bar-afternoon"></div>
+                    <span class="text-[10px] font-bold text-slate-600">บ่าย</span>
+                </div>
+                <div class="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-lg border border-white shadow-sm">
+                    <div class="w-4 h-2 rounded-sm bar-night"></div>
+                    <span class="text-[10px] font-bold text-slate-600">ดึก</span>
+                </div>
+            </div>
             </div>
         </div>
     </div>
@@ -392,28 +444,32 @@
                 const hasShift = dayShifts.length > 0;
                 
                 let isToday = (day === today.getDate() && month === (today.getMonth()+1) && year === today.getFullYear());
-                let cellClass = `day-cell relative h-[3.5rem] md:h-16 flex flex-col items-center justify-center cursor-pointer select-none animate-pop`;
+                let cellClass = `day-cell relative flex flex-col items-center cursor-pointer select-none animate-pop`;
                 
                 if(isToday) cellClass += ' today';
                 else cellClass += hasShift ? ' has-shift' : ' text-slate-400';
-                let dotsHtml = '<div class="flex gap-0.5 justify-center mt-1">'; 
+
+                // --- เปลี่ยนจาก Dot เป็น Bar ตรงนี้ ---
+                let barsHtml = '<div class="flex flex-col w-full items-center gap-0.5">'; 
                 if(hasShift) {
                     dayShifts.forEach(shift => {
-                        let dotColor = 'bg-slate-300';
-                        if(shift.ShiftName.includes('เช้า')) dotColor = 'dot-morning';
-                        else if(shift.ShiftName.includes('บ่าย')) dotColor = 'dot-afternoon';
-                        else if(shift.ShiftName.includes('ดึก')) dotColor = 'dot-night';
-                        dotsHtml += `<div class="dot ${dotColor}"></div>`;
+                        let barColorClass = 'bg-slate-400';
+                        if(shift.ShiftName.includes('เช้า')) barColorClass = 'bar-morning';
+                        else if(shift.ShiftName.includes('บ่าย')) barColorClass = 'bar-afternoon';
+                        else if(shift.ShiftName.includes('ดึก')) barColorClass = 'bar-night';
+                        
+                        // แสดงชื่อเวร เช่น "เช้า", "บ่าย", "ดึก"
+                        barsHtml += `<div class="shift-bar ${barColorClass}">${shift.ShiftName}</div>`;
                     });
                 }
-                dotsHtml += '</div>';
+                barsHtml += '</div>';
 
-                const delay = (day * 0.03).toFixed(2);
+                const delay = (day * 0.02).toFixed(2);
                 const cell = document.createElement('div');
                 cell.className = cellClass;
                 cell.style.animationDelay = `${delay}s`;
-                cell.innerHTML = `<span class="text-sm font-semibold z-10">${day}</span>${dotsHtml}`;
-    
+                cell.innerHTML = `<span class="date-number font-bold z-10">${day}</span>${barsHtml}`;
+
                 if(hasShift) cell.onclick = () => openDetailSheet(dayShifts, day);
                 grid.appendChild(cell);
             }
