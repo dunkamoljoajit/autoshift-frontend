@@ -205,11 +205,11 @@ class AppHeader extends HTMLElement {
 }
 if (!customElements.get('app-header')) customElements.define('app-header', AppHeader);
 
-// --- App Navbar (เมนูล่างแบบ Auto-Hide) ---
+// // --- App Navbar (เมนูล่างแบบ Auto-Hide) ---
 class AppNavbar extends HTMLElement {
     constructor() {
         super();
-        // Global Function สำหรับสั่งเปิดปิดแบบ Manual
+        // สร้าง Global Function ให้เรียกใช้ได้จากทุกหน้า
         window.toggleBottomNav = (show) => {
             const nav = this.querySelector('nav');
             if (!nav) return;
@@ -228,11 +228,12 @@ class AppNavbar extends HTMLElement {
 
     initScrollEffect() {
         let lastScrollY = window.scrollY;
-        // ฟังก์ชันตรวจจับการเลื่อน
+        // ฟังก์ชันตรวจจับการเลื่อนจอ
         this._scrollHandler = () => {
             const nav = this.querySelector('nav');
             if (!nav) return;
-            // ถ้าเลื่อนลงเกิน 100px ให้ซ่อน | เลื่อนขึ้นให้แสดง
+
+            // เงื่อนไข: เลื่อนลงเกิน 100px -> ซ่อน | เลื่อนขึ้น -> แสดง
             if (window.scrollY > lastScrollY && window.scrollY > 100) {
                 nav.classList.add('nav-hidden');
             } else {
@@ -240,11 +241,12 @@ class AppNavbar extends HTMLElement {
             }
             lastScrollY = window.scrollY;
         };
+        // ใช้ passive: true เพื่อให้การเลื่อนหน้าจอลื่นไหล
         window.addEventListener('scroll', this._scrollHandler, { passive: true });
     }
 
     disconnectedCallback() {
-        // ลบ Event listener เมื่อ component ถูกทำลายเพื่อประสิทธิภาพ
+        // ลบ Event เมื่อออกจากหน้า เพื่อป้องกันแอปอืด
         window.removeEventListener('scroll', this._scrollHandler);
     }
 
@@ -271,8 +273,16 @@ class AppNavbar extends HTMLElement {
 
         this.innerHTML = `
         <style>
-            app-navbar nav { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; }
-            app-navbar nav.nav-hidden { transform: translateY(100%); opacity: 0; pointer-events: none; }
+            /* อนิเมชั่นการเลื่อนเก็บเมนู */
+            app-navbar nav { 
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; 
+            }
+            /* คลาสสำหรับซ่อนเมนูลงข้างล่าง */
+            app-navbar nav.nav-hidden { 
+                transform: translateY(100%); 
+                opacity: 0; 
+                pointer-events: none; 
+            }
         </style>
         <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
             <div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">
