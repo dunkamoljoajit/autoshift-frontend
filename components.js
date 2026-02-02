@@ -3,25 +3,19 @@
 // =========================================================
 const API_BASE = 'https://autoshift-backend.onrender.com'; 
 
-// ฟังก์ชันช่วยดึงข้อมูลผู้ใช้จาก LocalStorage
 function getUser() {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
 }
 
-// ฟังก์ชันแปลง Path รูปภาพให้ถูกต้อง
 function getProfileImageUrl(path) {
     if (!path) return 'https://placehold.co/100?text=User';
-    // ตรวจสอบ path ว่ามี http หรือไม่ ถ้าไม่มีให้เติม path ของ server
     return path.startsWith('http') ? path : `${API_BASE}/uploads/${path}`;
 }
 
-// ฟังก์ชันออกจากระบบ
 async function logout() {
     const user = getUser(); 
     const token = localStorage.getItem('token');
-
-    // 1. ถ้ามี UserID ให้ยิง API ไปบอก Server ว่า Logout แล้ว
     if (user && user.UserID) {
         try {
             await fetch(`${API_BASE}/logout`, {
@@ -34,24 +28,13 @@ async function logout() {
             });
         } catch (err) {
             console.error("Logout API Error:", err);
-            // ต่อให้ API Error ก็ต้องยอมให้ Logout ได้ เพื่อไม่ให้ user ติดอยู่ในระบบ
         }
     }
-
-    // 2. ลบข้อมูลใน LocalStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userRole');
-
-    // 3. หยุดระบบแจ้งเตือนถ้าทำงานอยู่
+    localStorage.clear();
     if (window.notificationInterval) {
         clearInterval(window.notificationInterval);
         window.notificationInterval = null;
     }
-
-    // 4. Redirect ไปหน้า Login
     window.location.href = 'login.html';
 }
 
@@ -64,37 +47,16 @@ class AppHeader extends HTMLElement {
     connectedCallback() {
         const user = getUser(); 
         if (!user) return;
-
         const isHead = user.RoleID === 1;
-
-        // Config Theme ตาม Role
         const theme = isHead
-            ? {
-                hexColor: '#7c3aed',
-                iconBg: '#7c3aed',
-                title: 'HEAD NURSE',
-                sub: 'ADMINISTRATION',
-                homeLink: 'Headnurse_dashboard.html',
-                notiLink: 'notifications.html',
-                userIcon: 'fa-user-md',
-            }
-            : {
-                hexColor: '#4f46e5',
-                iconBg: '#4f46e5',
-                title: `สวัสดี ${user.FirstName}`, 
-                sub: 'NURSE SYSTEM',
-                homeLink: 'dashboard.html',
-                notiLink: 'notifications.html', 
-                userIcon: 'fa-user-nurse',
-            };
+            ? { hexColor: '#7c3aed', iconBg: '#7c3aed', title: 'HEAD NURSE', sub: 'ADMINISTRATION', homeLink: 'Headnurse_dashboard.html', notiLink: 'notifications.html', userIcon: 'fa-user-md' }
+            : { hexColor: '#4f46e5', iconBg: '#4f46e5', title: `สวัสดี ${user.FirstName}`, sub: 'NURSE SYSTEM', homeLink: 'dashboard.html', notiLink: 'notifications.html', userIcon: 'fa-user-nurse' };
 
         this.innerHTML = `
         <header class="bg-white sticky top-0 w-full shadow-sm" style="z-index: 2000 !important; border-top: 4px solid ${theme.hexColor};">
             <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center relative">
-                
                 <a href="${theme.homeLink}" class="flex items-center gap-3 shrink-0">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md transition-transform hover:scale-105"
-                         style="background-color: ${theme.iconBg};">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md transition-transform hover:scale-105" style="background-color: ${theme.iconBg};">
                         <i class="fas ${theme.userIcon} text-lg"></i> 
                     </div>
                     <div class="flex flex-col">
@@ -102,53 +64,33 @@ class AppHeader extends HTMLElement {
                         <p class="text-[9px] text-slate-400 font-medium tracking-wide mt-1 uppercase">${theme.sub}</p>
                     </div>
                 </a>
-
                 <div class="flex items-center gap-3 sm:gap-5 shrink-0">
-                    
                     <div class="relative inline-block">
                         <button id="noti-trigger" class="relative p-2 rounded-full hover:bg-slate-50 transition-all group focus:outline-none">
                             <i class="fas fa-bell text-2xl text-slate-400 transition-colors group-hover:text-indigo-500"></i>
-                            
-                            <span id="unread-count" class="hidden absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white shadow-sm ring-1 ring-red-200">
-                                0
-                            </span>
+                            <span id="unread-count" class="hidden absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white shadow-sm ring-1 ring-red-200">0</span>
                         </button>
-
-                        <div id="noti-dropdown" 
-                             class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[92vw] sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden origin-top transition-all duration-200" 
-                             style="z-index: 2001;">
-                            
+                        <div id="noti-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[92vw] sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden origin-top transition-all duration-200" style="z-index: 2001;">
                             <div class="px-4 py-3 border-b border-slate-50 bg-slate-50 flex justify-between items-center">
                                 <h3 class="text-sm font-bold text-slate-700">การแจ้งเตือน</h3>
                                 <span class="text-[10px] text-slate-400">ล่าสุด</span>
                             </div>
-                            
                             <div id="noti-list" class="max-h-80 overflow-y-auto custom-scrollbar">
                                 <div class="p-4 text-center text-xs text-gray-400">กำลังโหลด...</div>
                             </div>
-                            
-                            <a href="${theme.notiLink}" class="block bg-slate-50 py-3 text-center text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-100 border-t border-slate-100 transition-colors">
-                                ดูทั้งหมด
-                            </a>
+                            <a href="${theme.notiLink}" class="block bg-slate-50 py-3 text-center text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-100 border-t border-slate-100 transition-colors">ดูทั้งหมด</a>
                         </div>
                     </div>
-
                     <div id="profile-menu-trigger" class="relative flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-50 py-1 pl-1 pr-3 rounded-full border border-slate-200 shadow-sm transition-all min-w-fit">
-                        <img id="header-avatar" 
-                            class="w-10 h-10 rounded-full object-cover border border-slate-100 shadow-sm shrink-0" 
-                            src="${getProfileImageUrl(user.ProfileImage)}" 
-                            onerror="this.src='https://placehold.co/100?text=User'">
-                        
+                        <img id="header-avatar" class="w-10 h-10 rounded-full object-cover border border-slate-100 shadow-sm shrink-0" src="${getProfileImageUrl(user.ProfileImage)}" onerror="this.src='https://placehold.co/100?text=User'">
                         <div class="flex flex-col items-start leading-tight">
                             <span class="text-sm font-bold text-slate-700 truncate max-w-[100px]">${user.FirstName}</span>
                             <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-0.5 tracking-tight uppercase">
-                                <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                                ONLINE
+                                <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> ONLINE
                             </span>
                         </div>
                         <i class="fas fa-chevron-down text-xs text-slate-400 ml-1 shrink-0"></i>
                     </div>
-
                 </div>
             </div>
         </header>`;
@@ -161,23 +103,17 @@ class AppHeader extends HTMLElement {
         const trigger = this.querySelector('#noti-trigger');
         const dropdown = this.querySelector('#noti-dropdown');
         const listContainer = this.querySelector('#noti-list');
-
         trigger.addEventListener('click', async (e) => {
             e.stopPropagation();
             const profileDropdown = document.getElementById('global-custom-dropdown');
             if(profileDropdown) profileDropdown.classList.add('hidden');
-
             dropdown.classList.toggle('hidden');
-
             if (!dropdown.classList.contains('hidden')) {
                 await this.loadNotificationsInDropdown(user, listContainer);
             }
         });
-
         document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
+            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) dropdown.classList.add('hidden');
         });
     }
 
@@ -187,31 +123,21 @@ class AppHeader extends HTMLElement {
             const res = await fetch(`${API_BASE}/api/notifications/all/${user.UserID}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
             if (!res.ok) throw new Error("Load failed");
             const data = await res.json();
-
             container.innerHTML = ""; 
-
             if (!data.success || data.notifications.length === 0) {
                 container.innerHTML = `<div class="p-10 text-center text-slate-400 text-xs">ไม่มีการแจ้งเตือนใหม่</div>`;
                 return;
             }
-
             data.notifications.slice(0, 5).forEach(noti => {
-                const timeAgo = new Date(noti.created_at).toLocaleString('th-TH', { 
-                    timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'
-                });
-                
+                const timeAgo = new Date(noti.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
                 const isSystem = noti.type === 'system';
                 const iconBg = isSystem ? 'bg-blue-50 text-blue-500' : 'bg-orange-50 text-orange-500';
-
                 container.innerHTML += `
                 <div class="px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors" onclick="window.location.href='notifications.html'">
                     <div class="flex gap-3 items-start">
-                        <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]">
-                            <i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i>
-                        </div>
+                        <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]"><i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i></div>
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-center gap-2">
                                 <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? noti.LastName : noti.FirstName}</h4>
@@ -228,28 +154,14 @@ class AppHeader extends HTMLElement {
     async fetchBadgeCount(user) {
         try {
             const token = localStorage.getItem('token');
-            
-            // [Fix 403] ถ้าไม่มี Token ไม่ต้องยิง API
             if (!token) return;
-
             const isHead = user.RoleID === 1;
             const endpoint = isHead ? '/api/admin/pending-counts' : `/api/notifications/unread-count/${user.UserID}`;
-            
             const res = await fetch(`${API_BASE}${endpoint}`, {
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
-
-            // [Fix 403] ดักจับ 401/403 ถ้า Token หมดอายุ ให้หยุดเงียบๆ
-            if (res.status === 401 || res.status === 403) {
-                console.warn("Token expired (fetchBadgeCount)");
-                return; 
-            }
-
+            if (res.status === 401 || res.status === 403) return;
             if (!res.ok) return;
-
             const data = await res.json();
             if (data.success) {
                 const badge = this.querySelector('#unread-count');
@@ -258,9 +170,7 @@ class AppHeader extends HTMLElement {
                     if (count > 0) {
                         badge.innerText = count > 99 ? '99+' : count;
                         badge.classList.remove('hidden');
-                    } else {
-                        badge.classList.add('hidden');
-                    }
+                    } else { badge.classList.add('hidden'); }
                 }
             }
         } catch (err) { console.error("Badge Error:", err); }
@@ -269,52 +179,37 @@ class AppHeader extends HTMLElement {
     setupProfileLogic(user) {
         const trigger = this.querySelector('#profile-menu-trigger');
         let dropdown = document.getElementById('global-custom-dropdown');
-
         if (!dropdown) {
             const dropdownHtml = `
-            <div id="global-custom-dropdown" 
-                class="hidden fixed w-44 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 origin-top-right transition-all duration-200"
-                style="z-index: 9999 !important;"> 
-                <a href="profile-edit.html" class="flex items-center px-4 py-2 text-[12px] text-slate-600 hover:bg-slate-50">
-                    <i class="fas fa-user-edit w-5 mr-2 text-indigo-500"></i> แก้ไขโปรไฟล์
-                </a>
+            <div id="global-custom-dropdown" class="hidden fixed w-44 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 origin-top-right transition-all duration-200" style="z-index: 9999 !important;"> 
+                <a href="profile-edit.html" class="flex items-center px-4 py-2 text-[12px] text-slate-600 hover:bg-slate-50"><i class="fas fa-user-edit w-5 mr-2 text-indigo-500"></i> แก้ไขโปรไฟล์</a>
                 <div class="border-t border-slate-100 my-1"></div>
-                <button id="header-logout-btn" class="w-full text-left flex items-center px-4 py-2 text-[12px] text-red-500 hover:bg-red-50">
-                    <i class="fas fa-sign-out-alt w-5 mr-2"></i> ออกจากระบบ
-                </button>
+                <button id="header-logout-btn" class="w-full text-left flex items-center px-4 py-2 text-[12px] text-red-500 hover:bg-red-50"><i class="fas fa-sign-out-alt w-5 mr-2"></i> ออกจากระบบ</button>
             </div>`;
             document.body.insertAdjacentHTML('afterbegin', dropdownHtml);
             dropdown = document.getElementById('global-custom-dropdown');
         }
-
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const notiDropdown = this.querySelector('#noti-dropdown');
             if(notiDropdown) notiDropdown.classList.add('hidden');
-
             const triggerRect = trigger.getBoundingClientRect();
             dropdown.style.top = `${triggerRect.bottom + 10}px`; 
             dropdown.style.right = `${window.innerWidth - triggerRect.right}px`;
             dropdown.classList.toggle('hidden');
         });
-
         document.addEventListener('click', () => dropdown.classList.add('hidden'));
-
         const logoutBtn = dropdown.querySelector('#header-logout-btn');
         logoutBtn.onclick = () => logout();
     }
 }
+if (!customElements.get('app-header')) customElements.define('app-header', AppHeader);
 
-if (!customElements.get('app-header')) {
-    customElements.define('app-header', AppHeader);
-}
-
-// --- App Navbar (เมนูล่าง) ---
+// --- App Navbar (เมนูล่างแบบ Auto-Hide) ---
 class AppNavbar extends HTMLElement {
     constructor() {
         super();
-        // สร้าง Global Function ให้เรียกใช้ได้จากทุกหน้า
-        // วิธีใช้: window.toggleBottomNav(true) เพื่อเปิด, window.toggleBottomNav(false) เพื่อปิด
+        // Global Function สำหรับสั่งเปิดปิดแบบ Manual
         window.toggleBottomNav = (show) => {
             const nav = this.querySelector('nav');
             if (!nav) return;
@@ -327,29 +222,40 @@ class AppNavbar extends HTMLElement {
     }
 
     connectedCallback() {
+        this.render();
+        this.initScrollEffect();
+    }
+
+    initScrollEffect() {
+        let lastScrollY = window.scrollY;
+        // ฟังก์ชันตรวจจับการเลื่อน
+        this._scrollHandler = () => {
+            const nav = this.querySelector('nav');
+            if (!nav) return;
+            // ถ้าเลื่อนลงเกิน 100px ให้ซ่อน | เลื่อนขึ้นให้แสดง
+            if (window.scrollY > lastScrollY && window.scrollY > 100) {
+                nav.classList.add('nav-hidden');
+            } else {
+                nav.classList.remove('nav-hidden');
+            }
+            lastScrollY = window.scrollY;
+        };
+        window.addEventListener('scroll', this._scrollHandler, { passive: true });
+    }
+
+    disconnectedCallback() {
+        // ลบ Event listener เมื่อ component ถูกทำลายเพื่อประสิทธิภาพ
+        window.removeEventListener('scroll', this._scrollHandler);
+    }
+
+    render() {
         const user = getUser();
         if (!user) return;
-
         const isHead = user.RoleID === 1;
-        
-        const headMenus = [
-            { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' },
-            { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' },
-            { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' },
-            { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' },
-            { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' },
-            { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' }
-        ];
+        const menus = isHead 
+            ? [ { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' }, { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' } ]
+            : [ { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' } ];
 
-        const nurseMenus = [
-            { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' },
-            { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' },
-            { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' },
-            { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' },
-            { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' },
-        ];
-
-        const menus = isHead ? headMenus : nurseMenus;
         const activeColor = isHead ? 'text-violet-600' : 'text-indigo-600';
         const barColor = isHead ? 'bg-violet-600' : 'bg-indigo-600';
 
@@ -360,21 +266,13 @@ class AppNavbar extends HTMLElement {
                 ${isActive ? `<div class="absolute top-0 w-8 h-1 ${barColor} rounded-b-lg shadow-sm"></div>` : ''}
                 <i class="fas ${m.icon} text-xl mb-1 transition-transform group-hover:-translate-y-1"></i>
                 <span class="text-[10px] font-medium">${m.label}</span>
-            </a>
-            `;
+            </a>`;
         }).join('');
 
-        // เพิ่ม inline style สำหรับ transition และ class nav-hidden
         this.innerHTML = `
         <style>
-            app-navbar nav {
-                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-            }
-            app-navbar nav.nav-hidden {
-                transform: translateY(100%);
-                opacity: 0;
-                pointer-events: none;
-            }
+            app-navbar nav { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; }
+            app-navbar nav.nav-hidden { transform: translateY(100%); opacity: 0; pointer-events: none; }
         </style>
         <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
             <div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">
