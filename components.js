@@ -311,13 +311,27 @@ if (!customElements.get('app-header')) {
 
 // --- App Navbar (เมนูล่าง) ---
 class AppNavbar extends HTMLElement {
+    constructor() {
+        super();
+        // สร้าง Global Function ให้เรียกใช้ได้จากทุกหน้า
+        // วิธีใช้: window.toggleBottomNav(true) เพื่อเปิด, window.toggleBottomNav(false) เพื่อปิด
+        window.toggleBottomNav = (show) => {
+            const nav = this.querySelector('nav');
+            if (!nav) return;
+            if (show === undefined) {
+                nav.classList.toggle('nav-hidden');
+            } else {
+                show ? nav.classList.remove('nav-hidden') : nav.classList.add('nav-hidden');
+            }
+        };
+    }
+
     connectedCallback() {
         const user = getUser();
         if (!user) return;
 
         const isHead = user.RoleID === 1;
         
-        // **Menu Config:** กำหนดรายการเมนูแยกตาม Role
         const headMenus = [
             { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' },
             { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' },
@@ -336,7 +350,6 @@ class AppNavbar extends HTMLElement {
         ];
 
         const menus = isHead ? headMenus : nurseMenus;
-        
         const activeColor = isHead ? 'text-violet-600' : 'text-indigo-600';
         const barColor = isHead ? 'bg-violet-600' : 'bg-indigo-600';
 
@@ -351,7 +364,18 @@ class AppNavbar extends HTMLElement {
             `;
         }).join('');
 
+        // เพิ่ม inline style สำหรับ transition และ class nav-hidden
         this.innerHTML = `
+        <style>
+            app-navbar nav {
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            }
+            app-navbar nav.nav-hidden {
+                transform: translateY(100%);
+                opacity: 0;
+                pointer-events: none;
+            }
+        </style>
         <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
             <div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">
                 ${menuHtml}
