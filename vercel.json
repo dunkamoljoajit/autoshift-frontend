@@ -1,15 +1,13 @@
 {
-    "version": 2,
-    "builds": [
+  "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
     {
-    "src": "index.js",
-    "use": "@vercel/node"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
     }
-    ],
-    "routes": [
-    {
-    "src": "/(.*)",
-    "dest": "index.js"
-    }
-    ]
-    }
+  ]
+}
