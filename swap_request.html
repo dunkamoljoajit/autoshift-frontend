@@ -755,6 +755,44 @@
                 if(currentUser.RoleID === 1) fetchPendingApprovals();
             }
         }
+        // ฟังก์ชันเปิด Modal สร้างประกาศ
+        async function openPostModal() {
+            const token = localStorage.getItem('token');
+            const modal = document.getElementById('postModal');
+            const content = document.getElementById('postModalContent');
+            const select = document.getElementById('post-my-shift');
+
+            if (!currentUser) return;
+
+            document.getElementById('createPostForm').reset();
+            select.innerHTML = '<option value="">กำลังโหลดเวรของคุณ...</option>';
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.replace('scale-90', 'scale-100');
+            }, 10);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (data.success && data.results.length > 0) {
+                    select.innerHTML = '<option value="">-- เลือกเวรที่จะประกาศแลก --</option>' + 
+                        data.results.map(s => `
+                            <option value="${s.ScheduleID}">
+                                ${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}
+                            </option>
+                        `).join('');
+                } else {
+                    select.innerHTML = '<option value="">คุณไม่มีเวรในอนาคตที่สามารถแลกได้</option>';
+                }
+            } catch (err) {
+                select.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
+            }
+        }
     window.handleSearch = handleSearch;
     window.openRequestModal = openRequestModal;
     window.closeRequestModal = closeRequestModal;
