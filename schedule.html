@@ -630,55 +630,36 @@
         }
 
         // ================= 5. POST MODAL LOGIC (Updated to Redirect) =================
-        async function openPostModal(preSelectedId = null) {
-            const modal = document.getElementById('postModal');
-            const content = document.getElementById('postModalContent');
-            const token = localStorage.getItem('token'); // ✅ ดึง Token
-
+        async function openPostModal() {
+            const token = localStorage.getItem('token');
             document.getElementById('createPostForm').reset();
-            
-            modal.classList.remove('hidden');
-            setTimeout(() => { 
-                modal.classList.remove('opacity-0'); 
-                content.classList.remove('scale-90'); 
-                content.classList.add('scale-100'); 
-            }, 10);
-
             const select = document.getElementById('post-my-shift');
-            select.innerHTML = '<option value="">กำลังโหลด...</option>';
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดเวรที่ว่างของคุณ...</option>';
             
+            document.getElementById('postModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
+            document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
+
             try {
-                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
-                    method: 'GET', // ✅ ระบุ Method
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // ✅ แนบ Token
-                    }
+                // ดึงเวรของฉัน (ส่งแค่ userId ปกติ) เพื่อให้ SQL ฝั่ง MyShifts กรองเวรที่ว่างมาให้
+                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
+                    headers: {'Authorization': `Bearer ${token}`} 
                 });
-
-                if (res.status === 401) { window.location.href = 'login.html'; return; } // ✅ 401 Check
-
                 const data = await res.json();
-                
-                select.innerHTML = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>';
-                
-                if(data.success && data.results.length > 0) {
-                    data.results.forEach(s => {
-                        select.insertAdjacentHTML('beforeend', `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).format('D MMM')} - ${s.ShiftName}</option>`);
-                    });
 
-                    if (preSelectedId) {
-                        select.value = preSelectedId;
-                    }
-
-                } else { 
-                    select.innerHTML = '<option value="">ไม่มีเวรในอนาคต</option>'; 
+                if (data.success && data.results.length > 0) {
+                    select.innerHTML = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>' + 
+                        data.results.map(s => {
+                            const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
+                            return `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
+                        }).join('');
+                } else {
+                    select.innerHTML = '<option value="" disabled>คุณไม่มีเวรในอนาคตที่ว่างพอจะประกาศได้</option>';
                 }
-            } catch(e) { 
-                select.innerHTML = '<option value="">โหลดข้อมูลล้มเหลว</option>'; 
+            } catch (err) { 
+                select.innerHTML = '<option value="" disabled>โหลดข้อมูลล้มเหลว</option>'; 
             }
         }
-
         function closePostModal() {
             const modal = document.getElementById('postModal');
             const content = document.getElementById('postModalContent');

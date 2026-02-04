@@ -445,23 +445,70 @@
     }
 
     async function openRequestModal(targetId, targetName, scheduleId) {
+        // 1. ตั้งค่าพื้นฐานและแสดง UI Modal
         document.getElementById('modal-target-name').innerText = targetName;
         document.getElementById('modal-target-user-id').value = targetId;
-        document.getElementById('modal-target-schedule-id').value = scheduleId;
+        document.getElementById('modal-target-schedule-id').value = scheduleId; // ID เวรของเพื่อนที่เราอยากได้
         document.getElementById('modal-reason').value = '';
+        
         const select = document.getElementById('my-offer-shift');
-        select.innerHTML = '<option>กำลังโหลด...</option>';
-        document.getElementById('requestModal').classList.remove('hidden');
-        setTimeout(() => document.getElementById('requestModal').classList.remove('opacity-0'), 10);
+        select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบเวรที่ปลอดภัยสำหรับคุณ...</option>';
+        
+        // เปิด Modal
+        const modal = document.getElementById('requestModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
         document.getElementById('requestModalContent').classList.replace('scale-90', 'scale-100');
+
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { headers: {'Authorization': `Bearer ${token}`} });
+            
+            /** * 2. เรียก API พร้อมส่ง targetScheduleId ไปด้วย 
+            * เพื่อให้ Backend ใช้ฟังก์ชัน checkFatigueStatus กรองเวรที่แลกแล้วไม่ผิดกฎ 
+            */
+            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`, { 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
             const data = await res.json();
-            select.innerHTML = data.success 
-                ? '<option value="">-- เลือกเวรของคุณ --</option>' + data.results.map(s => `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543,'years').format('D MMM')} - ${s.ShiftName}</option>`).join('')
-                : '<option>ไม่มีเวรให้แลก</option>';
-        } catch(err) { select.innerHTML = '<option>โหลดผิดพลาด</option>'; }
+
+            if (data.success) {
+                if (data.results.length > 0) {
+                    // 3. แสดงลิสต์เวรที่ผ่านการกรอง (Safe Shifts)
+                    let optionsHtml = '<option value="">-- เลือกเวรของคุณที่จะนำไปแลก --</option>';
+                    
+                    data.results.forEach(s => {
+                        // แปลงวันที่เป็นแบบไทย (พ.ศ.)
+                        const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
+                        optionsHtml += `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
+                    });
+                    
+                    select.innerHTML = optionsHtml;
+                } else {
+                    // กรณีไม่มีเวรที่ผ่านกฎ (เช่น แลกไปแล้วจะควงเวร หรือหัวหน้าจะแลกเวรดึก)
+                    let msg = data.message || "ไม่มีเวรของคุณที่สามารถแลกกับเวรนี้ได้ตามกฎความปลอดภัย";
+                    select.innerHTML = `<option value="" disabled>${msg}</option>`;
+                    
+                    // แจ้งเตือนผู้ใช้เล็กน้อย
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'ไม่สามารถแลกได้',
+                        text: msg,
+                        confirmButtonText: 'รับทราบ',
+                        confirmButtonColor: '#4f46e5'
+                    });
+                }
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (err) {
+            console.error("Error fetching safe shifts:", err);
+            select.innerHTML = '<option value="" disabled>❌ ไม่สามารถโหลดข้อมูลได้</option>';
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: 'ไม่สามารถตรวจสอบความปลอดภัยของตารางเวรได้'
+            });
+        }
     }
 
     function closePostModal() { 
