@@ -569,7 +569,7 @@
         } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดผิดพลาด</div>'; }
     }
 
-    async function fetchPendingApprovals() {
+   async function fetchPendingApprovals() {
         const container = document.getElementById('approval-list');
         const badge = document.getElementById('approval-badge');
         const token = localStorage.getItem('token');
@@ -582,9 +582,8 @@
             if (data.success && data.results.length > 0) {
                 badge.innerText = data.results.length;
                 container.innerHTML = data.results.map(item => {
-                    // ฟอร์แมตวันที่แบบไทย (เพิ่ม 543 ปี)
-                    const reqDate = moment(item.ReqDate).add(543, 'years').format('D ก.พ. YY');
-                    const resDate = moment(item.ResDate).add(543, 'years').format('D ก.พ. YY');
+                    const reqDate = moment(item.ReqDate).add(543, 'years').format('D MMM YY');
+                    const resDate = moment(item.ResDate).add(543, 'years').format('D MMM YY');
                     
                     return `
                     <div class="purple-bracket-card p-4 shadow-sm mb-3 bg-white border border-slate-100">
@@ -593,17 +592,17 @@
                                 <div class="text-[13px] font-bold text-slate-800 ml-2">${item.ReqName} ↔ ${item.ResName}</div>
                                 <div class="flex gap-2">
                                     <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" 
-                                        class="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition active:scale-90">
-                                        <i class="fas fa-times text-sm"></i>
+                                        class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition active:scale-90">
+                                        <i class="fas fa-times"></i>
                                     </button>
                                     <button onclick="window.respondApproval('${item.exchange_id}', 'approve')" 
-                                        class="w-9 h-9 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-sm shadow-green-100 transition active:scale-90">
-                                        <i class="fas fa-check text-sm"></i>
+                                        class="w-10 h-10 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-md shadow-green-200 transition active:scale-95">
+                                        <i class="fas fa-check text-lg"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div class="grid grid-cols-2 gap-2 text-[10px]">
                                 <div class="bg-indigo-50/50 p-2.5 rounded-2xl border border-indigo-100/50">
                                     <div class="text-indigo-600 font-bold mb-0.5">จาก: ${item.ReqName}</div>
                                     <div class="text-slate-600">${reqDate} (${item.ReqShift})</div>
@@ -623,17 +622,10 @@
                     </div>`;
                 }).join('');
             } else { 
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center py-10 opacity-40">
-                        <i class="fas fa-clipboard-check text-3xl mb-2 text-slate-300"></i>
-                        <p class="text-xs font-light">ไม่มีรายการค้างอนุมัติ</p>
-                    </div>`; 
+                container.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs font-light">ไม่มีรายการค้างอนุมัติ</div>'; 
                 badge.innerText = "0"; 
             }
-        } catch (err) { 
-            console.error("Fetch Approvals Error:", err);
-            container.innerHTML = '<div class="text-center text-red-400 py-4 text-[10px]">ไม่สามารถโหลดข้อมูลได้</div>';
-        }
+        } catch (err) { console.error(err); }
     }
 
     async function fetchIncomingRequests() {
