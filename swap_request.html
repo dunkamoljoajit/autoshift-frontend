@@ -553,8 +553,17 @@
             if(!data.success || !data.results.length) { container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีประกาศ</div>`; return; }
             container.innerHTML = data.results.map(post => `
                 <div class="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl p-4 border border-pink-100 shadow-sm mb-2">
-                    <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-pink-500">โพสต์แลกเวร</span>
-                    <button onclick="window.deletePost('${post.PostID}')" class="text-slate-300 hover:text-red-500"><i class="fas fa-trash-alt"></i></button></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-pink-500">โพสต์แลกเวร</span>
+                        <div class="flex gap-2">
+                            <button onclick='window.openEditPostModal(${JSON.stringify(post)})' class="text-slate-300 hover:text-yellow-500 transition">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="window.deletePost('${post.PostID}', '${post.ScheduleID}')" class="text-slate-300 hover:text-red-500 transition">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="text-xs font-bold mt-1">${moment(post.Nurse_Date).add(543, 'years').format('D MMM YY')} (${post.ShiftName})</div>
                 </div>`).join('');
         } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดผิดพลาด</div>'; }
@@ -639,7 +648,7 @@
                                         <i class="fas fa-times text-lg"></i>
                                     </button>
                                     <button onclick="window.respondSwap('${req.SwapID}', 'approve')" 
-                                        class="w-10 h-10 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition active:scale-90"
+                                        class="w-10 h-10 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-sm shadow-green-100 transition active:scale-90"
                                         title="ยอมรับ">
                                         <i class="fas fa-check text-lg"></i>
                                     </button>
@@ -691,17 +700,136 @@
         if(data.success) { Swal.fire('สำเร็จ', act === 'approve' ? 'รอหัวหน้าพยาบาลยืนยัน' : 'ปฏิเสธแล้ว', 'success'); fetchIncomingRequests(); }
     }
 
-    async function deletePost(postId) {
-        const confirm = await Swal.fire({ title: 'ลบประกาศ?', icon: 'warning', showCancelButton: true });
-        if (confirm.isConfirmed) {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_BASE}/api/posts/delete/${postId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-            fetchMyActivePost();
+    async function deletePost(postId, scheduleId) {
+        const token = localStorage.getItem('token');
+        
+        try {
+            // 1. เช็คสถานะก่อนลบ
+            const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${scheduleId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const statusData = await checkRes.json();
+
+            if (statusData.success && statusData.isPending) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่สามารถลบได้',
+                    text: 'เวรนี้กำลังอยู่ในกระบวนการแลกเปลี่ยน',
+                    confirmButtonColor: '#4f46e5'
+                });
+            }
+
+            // 2. ยืนยันการลบ
+            const confirm = await Swal.fire({ 
+                title: 'ยืนยันการลบประกาศ?', 
+                text: "ข้อมูลประกาศจะถูกลบถาวร",
+                icon: 'warning', 
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ยืนยันการลบ',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (confirm.isConfirmed) {
+                const res = await fetch(`${API_BASE}/api/posts/delete/${postId}`, { 
+                    method: 'DELETE', 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                const data = await res.json();
+                if(data.success) {
+                    Swal.fire('สำเร็จ', 'ลบประกาศเรียบร้อย', 'success');
+                    fetchMyActivePost();
+                }
+            }
+        } catch (err) {
+            Swal.fire('Error', 'เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
         }
     }
 
-    async function openEditPostModal(data) { /* โค้ดเดิมคงไว้... */ }
-    async function handleUpdatePost(e) { e.preventDefault(); /* โค้ดเดิมคงไว้... */ }
+    async function openEditPostModal(post) {
+        const token = localStorage.getItem('token');
+        
+        try {
+            // 1. เช็คก่อนว่าเวรนี้ (ScheduleID) กำลังอยู่ใน process การแลก (Pending) หรือไม่
+            // สมมติว่าใช้ API ตัวเดียวกับที่เช็คสถานะเวร
+            const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${post.ScheduleID}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const statusData = await checkRes.json();
+
+            // ถ้า Backend ส่งมาว่า isPending: true หมายความว่ากำลังรอแลกอยู่
+            if (statusData.success && statusData.isPending) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่สามารถแก้ไขได้',
+                    text: 'เวรนี้กำลังอยู่ในระหว่างการดำเนินการแลกเปลี่ยน กรุณายกเลิกคำขอแลกเปลี่ยนก่อนแก้ไขประกาศ',
+                    confirmButtonColor: '#4f46e5'
+                });
+            }
+
+            // --- ถ้าผ่านเงื่อนไข ค่อยรัน Code เปิด Modal ปกติ ---
+            
+            document.getElementById('edit-post-id').value = post.PostID;
+            document.getElementById('edit-post-note').value = post.Note || '';
+            
+            if (post.DesiredDate) {
+                document.getElementById('edit-desired-date')._flatpickr.setDate(post.DesiredDate);
+            } else {
+                document.getElementById('edit-desired-date')._flatpickr.clear();
+            }
+
+            const select = document.getElementById('edit-post-schedule-id');
+            select.innerHTML = '<option value="" disabled>🔄 กำลังโหลดเวรของคุณ...</option>';
+
+            const modal = document.getElementById('editPostModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            document.getElementById('editPostModalContent').classList.replace('scale-90', 'scale-100');
+
+            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                select.innerHTML = data.results.map(s => `
+                    <option value="${s.ScheduleID}" ${s.ScheduleID == post.ScheduleID ? 'selected' : ''}>
+                        ${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}
+                    </option>
+                `).join('');
+            }
+        } catch (err) {
+            Swal.fire('Error', 'ไม่สามารถตรวจสอบสถานะเวรได้ในขณะนี้', 'error');
+        }
+    }
+    async function handleUpdatePost(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const postId = document.getElementById('edit-post-id').value;
+        
+        const body = {
+            scheduleId: document.getElementById('edit-post-schedule-id').value,
+            desiredDate: document.getElementById('edit-desired-date').value,
+            note: document.getElementById('edit-post-note').value,
+            userId: currentUser.UserID
+        };
+
+        try {
+            const res = await fetch(`${API_BASE}/api/posts/update/${postId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire('สำเร็จ', 'แก้ไขประกาศเรียบร้อย', 'success');
+                window.closeEditPostModal();
+                fetchMyActivePost();
+            } else {
+                Swal.fire('ล้มเหลว', data.message, 'error');
+            }
+        } catch (err) { Swal.fire('Error', 'เกิดข้อผิดพลาดในการบันทึก', 'error'); }
+    }
     function clearEditDate() { document.getElementById('edit-desired-date')._flatpickr.clear(); }
     </script>
 </body>
