@@ -560,25 +560,6 @@
         } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดผิดพลาด</div>'; }
     }
 
-    async function fetchIncomingRequests() {
-        const container = document.getElementById('incoming-list');
-        const badge = document.getElementById('incoming-badge');
-        const token = localStorage.getItem('token'); 
-        try {
-            const res = await fetch(`${API_BASE}/api/swaps/incoming/${currentUser.UserID}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            if(data.success && data.results.length > 0) {
-                badge.innerText = data.results.length; badge.classList.remove('hidden');
-                container.innerHTML = data.results.map(req => `
-                    <div class="black-bracket-card p-4 shadow-sm mb-3">
-                        <div class="flex justify-between items-center"><div class="text-xs font-bold">${req.RequesterName}</div>
-                        <div class="flex gap-1"><button onclick="window.respondSwap('${req.SwapID}', 'approve')" class="bg-green-600 text-white text-[10px] px-2 py-1 rounded-lg">ยอมรับ</button>
-                        <button onclick="window.respondSwap('${req.SwapID}', 'reject')" class="bg-red-500 text-white text-[10px] px-2 py-1 rounded-lg">ปฏิเสธ</button></div></div>
-                    </div>`).join('');
-            } else { badge.classList.add('hidden'); container.innerHTML = '<div class="text-center py-4 text-slate-400 text-xs">ไม่มีคำขอ</div>'; }
-        } catch(e) {}
-    }
-
     async function fetchPendingApprovals() {
         const container = document.getElementById('approval-list');
         const badge = document.getElementById('approval-badge');
@@ -588,15 +569,103 @@
             const data = await res.json();
             if (data.success && data.results.length > 0) {
                 badge.innerText = data.results.length;
-                container.innerHTML = data.results.map(item => `
+                container.innerHTML = data.results.map(item => {
+                    // ฟอร์แมตวันที่แบบไทย
+                    const reqDate = moment(item.ReqDate).add(543, 'years').format('D MMM YY');
+                    const resDate = moment(item.ResDate).add(543, 'years').format('D MMM YY');
+                    
+                    return `
                     <div class="purple-bracket-card p-4 shadow-sm mb-3">
-                        <div class="flex justify-between items-center"><div class="text-[11px] font-bold text-slate-800">${item.ReqName} ↔ ${item.ResName}</div>
-                        <div class="flex gap-1"><button onclick="window.respondApproval('${item.exchange_id}', 'approve')" class="bg-green-500 text-white w-7 h-7 rounded-lg"><i class="fas fa-check text-xs"></i></button>
-                        <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" class="bg-red-500 text-white w-7 h-7 rounded-lg"><i class="fas fa-times text-xs"></i></button></div></div>
-                    </div>`).join('');
-            } else { container.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">ไม่มีรายการ</div>'; badge.innerText = "0"; }
-        } catch (err) {}
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                                <div class="text-[11px] font-bold text-slate-800">${item.ReqName} ↔ ${item.ResName}</div>
+                                <div class="flex gap-1">
+                                    <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" class="bg-red-50 text-red-500 w-8 h-8 rounded-lg hover:bg-red-500 hover:text-white transition"><i class="fas fa-times text-xs"></i></button>
+                                    <button onclick="window.respondApproval('${item.exchange_id}', 'approve')" class="bg-green-600 text-white w-8 h-8 rounded-lg hover:bg-green-700 transition"><i class="fas fa-check text-xs"></i></button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[10px]">
+                                <div class="bg-indigo-50 p-2 rounded-lg">
+                                    <div class="text-indigo-600 font-bold">จาก: ${item.ReqName}</div>
+                                    <div>${reqDate} (${item.ReqShift})</div>
+                                </div>
+                                <div class="bg-emerald-50 p-2 rounded-lg text-right">
+                                    <div class="text-emerald-600 font-bold">สลับกับ: ${item.ResName}</div>
+                                    <div>${resDate} (${item.ResShift})</div>
+                                </div>
+                            </div>
+                            ${item.reason ? `<div class="text-[9px] text-slate-400 italic px-1">เหตุผล: ${item.reason}</div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } else { 
+                container.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs font-light">ไม่มีรายการค้างอนุมัติ</div>'; 
+                badge.innerText = "0"; 
+            }
+        } catch (err) { console.error(err); }
     }
+
+    async function fetchIncomingRequests() {
+        const container = document.getElementById('incoming-list');
+        const badge = document.getElementById('incoming-badge');
+        const token = localStorage.getItem('token'); 
+        try {
+            const res = await fetch(`${API_BASE}/api/swaps/incoming/${currentUser.UserID}`, { 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
+            const data = await res.json();
+            
+            if(data.success && data.results.length > 0) {
+                badge.innerText = data.results.length; 
+                badge.classList.remove('hidden');
+                
+                container.innerHTML = data.results.map(req => {
+                    // ฟอร์แมตวันที่ให้หัวหน้าอ่านง่าย
+                    const reqDate = moment(req.RequesterDate).add(543, 'years').format('D MMM');
+                    const targetDate = moment(req.TargetDate).add(543, 'years').format('D MMM');
+
+                    return `
+                    <div class="black-bracket-card p-4 shadow-sm mb-3 bg-white border border-slate-100">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="text-[10px] text-indigo-500 font-bold uppercase">คำขอจาก</div>
+                                    <div class="text-sm font-bold text-slate-800">${req.RequesterName}</div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="window.respondSwap('${req.SwapID}', 'reject')" 
+                                        class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition active:scale-90"
+                                        title="ปฏิเสธ">
+                                        <i class="fas fa-times text-lg"></i>
+                                    </button>
+                                    <button onclick="window.respondSwap('${req.SwapID}', 'approve')" 
+                                        class="w-10 h-10 flex items-center justify-center bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition active:scale-90"
+                                        title="ยอมรับ">
+                                        <i class="fas fa-check text-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 mt-1 py-2 px-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <div class="text-[11px] text-slate-600">
+                                    <span class="font-bold text-slate-400">เอา:</span> ${reqDate} (${req.RequesterShiftName || 'เวรเขา'})
+                                </div>
+                                <i class="fas fa-long-arrow-alt-right text-slate-300 text-[10px]"></i>
+                                <div class="text-[11px] text-slate-600">
+                                    <span class="font-bold text-slate-400">แลก:</span> ${targetDate} (${req.TargetShiftName || 'เวรเรา'})
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else { 
+                badge.classList.add('hidden'); 
+                container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs font-light italic">ไม่มีคำขอแลกเวรเข้ามา</div>'; 
+            }
+        } catch(e) {
+            console.error("Fetch incoming error:", e);
+        }
+}
 
     async function respondApproval(id, act) {
         const token = localStorage.getItem('token');
