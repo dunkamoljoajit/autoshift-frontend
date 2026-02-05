@@ -597,7 +597,7 @@
                                         <i class="fas fa-times text-sm"></i>
                                     </button>
                                     <button onclick="window.respondApproval('${item.exchange_id}', 'approve')" 
-                                        class="w-9 h-9 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-sm shadow-green-100 transition active:scale-90">
+                                        class="w-9 h-9 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-sm shadow-green-200 transition active:scale-95">
                                         <i class="fas fa-check text-sm"></i>
                                     </button>
                                 </div>
@@ -635,7 +635,6 @@
             container.innerHTML = '<div class="text-center text-red-400 py-4 text-[10px]">ไม่สามารถโหลดข้อมูลได้</div>';
         }
     }
-
     async function fetchIncomingRequests() {
         const container = document.getElementById('incoming-list');
         const badge = document.getElementById('incoming-badge');
