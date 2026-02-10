@@ -93,17 +93,7 @@
             initSocket();
         });
 
-        function initSocket() {
-            if (typeof io === 'undefined') return;
-            const socket = io(API_URL); 
-            socket.on('connect', () => socket.emit('register_user', currentUser.UserID));
-            
-            // ✅ เมื่อมีแจ้งเตือนใหม่ ให้โหลดใหม่เฉยๆ (ห้าม Mark Read ในนี้)
-            socket.on('receive_notification', () => {
-                console.log("Socket receive: Updating list...");
-                loadNotifications();
-            });
-        }
+    
 
         async function loadNotifications() {
             if (isFetching) return; 

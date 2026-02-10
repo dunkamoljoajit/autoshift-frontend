@@ -31,9 +31,10 @@ async function logout() {
         }
     }
     localStorage.clear();
-    if (window.notificationInterval) {
-        clearInterval(window.notificationInterval);
-        window.notificationInterval = null;
+    // [อัปเกรด] ตัดการเชื่อมต่อ Socket ทันทีเมื่อ Logout
+    if (window.socket) {
+        window.socket.disconnect();
+        window.socket = null;
     }
     window.location.href = 'login.html';
 }
@@ -42,7 +43,7 @@ async function logout() {
 // 2. WEB COMPONENTS
 // =========================================================
 
-// --- App Header (เมนูบน) ---
+// --- App Header ---
 class AppHeader extends HTMLElement {
     connectedCallback() {
         const user = getUser(); 
@@ -160,7 +161,6 @@ class AppHeader extends HTMLElement {
             const res = await fetch(`${API_BASE}${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
-            if (res.status === 401 || res.status === 403) return;
             if (!res.ok) return;
             const data = await res.json();
             if (data.success) {
@@ -199,203 +199,98 @@ class AppHeader extends HTMLElement {
             dropdown.classList.toggle('hidden');
         });
         document.addEventListener('click', () => dropdown.classList.add('hidden'));
-        const logoutBtn = dropdown.querySelector('#header-logout-btn');
-        logoutBtn.onclick = () => logout();
+        dropdown.querySelector('#header-logout-btn').onclick = () => logout();
     }
 }
 if (!customElements.get('app-header')) customElements.define('app-header', AppHeader);
 
-// // --- App Navbar (เมนูล่างแบบ Auto-Hide) ---
+// --- App Navbar (เมนูล่าง Auto-Hide) ---
 class AppNavbar extends HTMLElement {
     constructor() {
         super();
-        // สร้าง Global Function ให้เรียกใช้ได้จากทุกหน้า
         window.toggleBottomNav = (show) => {
             const nav = this.querySelector('nav');
             if (!nav) return;
-            if (show === undefined) {
-                nav.classList.toggle('nav-hidden');
-            } else {
-                show ? nav.classList.remove('nav-hidden') : nav.classList.add('nav-hidden');
-            }
+            show === undefined ? nav.classList.toggle('nav-hidden') : (show ? nav.classList.remove('nav-hidden') : nav.classList.add('nav-hidden'));
         };
     }
-
-    connectedCallback() {
-        this.render();
-        this.initScrollEffect();
-    }
-
+    connectedCallback() { this.render(); this.initScrollEffect(); }
     initScrollEffect() {
         let lastScrollY = window.scrollY;
-        // ฟังก์ชันตรวจจับการเลื่อนจอ
         this._scrollHandler = () => {
             const nav = this.querySelector('nav');
             if (!nav) return;
-
-            // เงื่อนไข: เลื่อนลงเกิน 100px -> ซ่อน | เลื่อนขึ้น -> แสดง
-            if (window.scrollY > lastScrollY && window.scrollY > 100) {
-                nav.classList.add('nav-hidden');
-            } else {
-                nav.classList.remove('nav-hidden');
-            }
+            if (window.scrollY > lastScrollY && window.scrollY > 100) nav.classList.add('nav-hidden');
+            else nav.classList.remove('nav-hidden');
             lastScrollY = window.scrollY;
         };
-        // ใช้ passive: true เพื่อให้การเลื่อนหน้าจอลื่นไหล
         window.addEventListener('scroll', this._scrollHandler, { passive: true });
     }
-
-    disconnectedCallback() {
-        // ลบ Event เมื่อออกจากหน้า เพื่อป้องกันแอปอืด
-        window.removeEventListener('scroll', this._scrollHandler);
-    }
-
+    disconnectedCallback() { window.removeEventListener('scroll', this._scrollHandler); }
     render() {
-        const user = getUser();
-        if (!user) return;
+        const user = getUser(); if (!user) return;
         const isHead = user.RoleID === 1;
         const menus = isHead 
             ? [ { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' }, { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' } ]
             : [ { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' } ];
-
         const activeColor = isHead ? 'text-violet-600' : 'text-indigo-600';
         const barColor = isHead ? 'bg-violet-600' : 'bg-indigo-600';
-
         const menuHtml = menus.map(m => {
             const isActive = window.location.href.includes(m.href);
-            return `
-            <a href="${m.href}" class="flex flex-col items-center justify-center relative w-full h-full group transition-all duration-200 ${isActive ? activeColor : 'text-gray-400 hover:text-gray-600'}">
+            return `<a href="${m.href}" class="flex flex-col items-center justify-center relative w-full h-full group transition-all duration-200 ${isActive ? activeColor : 'text-gray-400 hover:text-gray-600'}">
                 ${isActive ? `<div class="absolute top-0 w-8 h-1 ${barColor} rounded-b-lg shadow-sm"></div>` : ''}
                 <i class="fas ${m.icon} text-xl mb-1 transition-transform group-hover:-translate-y-1"></i>
                 <span class="text-[10px] font-medium">${m.label}</span>
             </a>`;
         }).join('');
-
-        this.innerHTML = `
-        <style>
-            /* อนิเมชั่นการเลื่อนเก็บเมนู */
-            app-navbar nav { 
-                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; 
-            }
-            /* คลาสสำหรับซ่อนเมนูลงข้างล่าง */
-            app-navbar nav.nav-hidden { 
-                transform: translateY(100%); 
-                opacity: 0; 
-                pointer-events: none; 
-            }
-        </style>
-        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-            <div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">
-                ${menuHtml}
-            </div>
-        </nav>`;
+        this.innerHTML = `<style>app-navbar nav { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; } app-navbar nav.nav-hidden { transform: translateY(100%); opacity: 0; pointer-events: none; }</style><nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]"><div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">${menuHtml}</div></nav>`;
     }
 }
-customElements.define('app-navbar', AppNavbar);
+if (!customElements.get('app-navbar')) customElements.define('app-navbar', AppNavbar);
 
-
-// --- Date Picker Component ---
+// --- App Date Picker ---
 class AppDatePicker extends HTMLElement {
     connectedCallback() {
         const placeholder = this.getAttribute('placeholder') || 'เลือกวันที่...';
         const id = this.getAttribute('input-id') || 'datepicker-' + Math.random().toString(36).substr(2, 9);
-        
-        this.innerHTML = `
-            <div class="relative group">
-                <input type="text" id="${id}" class="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pl-11 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition outline-none cursor-pointer" placeholder="${placeholder}">
-                <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors pointer-events-none"></i>
-            </div>`;
-        
-        setTimeout(() => {
-            if (typeof flatpickr !== 'undefined') {
-                flatpickr(`#${id}`, {
-                    locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: true,
-                    onChange: (selectedDates, dateStr) => {
-                        this.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } }));
-                    }
-                });
-            }
-        }, 0);
+        this.innerHTML = `<div class="relative group"><input type="text" id="${id}" class="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pl-11 text-sm font-medium text-gray-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition outline-none cursor-pointer" placeholder="${placeholder}"><i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors pointer-events-none"></i></div>`;
+        setTimeout(() => { if (typeof flatpickr !== 'undefined') { flatpickr(`#${id}`, { locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: true, onChange: (d, dateStr) => { this.dispatchEvent(new CustomEvent('date-change', { detail: { date: dateStr } })); } }); } }, 0);
     }
 }
-customElements.define('app-date-picker', AppDatePicker);
-
+if (!customElements.get('app-date-picker')) customElements.define('app-date-picker', AppDatePicker);
 
 // =========================================================
-// 3. AUTO LOGOUT SYSTEM (Global Idle Timeout - 15 Minutes)
+// 3. AUTO LOGOUT SYSTEM (Idle 15 Minutes)
 // =========================================================
 (function() {
-    const IDLE_TIMEOUT = 15 * 60 * 1000; // 15 นาที
+    const IDLE_TIMEOUT = 15 * 60 * 1000;
     let idleTimer;
-
     const performLogout = () => {
-        const user = getUser();
-        if (!user) return;
+        if (!getUser()) return;
         if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'warning',
-                title: 'หมดเวลาการใช้งาน',
-                text: 'คุณไม่ได้ทำรายการเกิน 15 นาที ระบบจะนำคุณกลับไปหน้า Login',
-                timer: 4000,
-                timerProgressBar: true,
-                showConfirmButton: false,
-                allowOutsideClick: false,
-                allowEscapeKey: false
-            }).then(() => {
-                logout();
-            });
+            Swal.fire({ icon: 'warning', title: 'หมดเวลาการใช้งาน', text: 'คุณไม่ได้ทำรายการเกิน 15 นาที ระบบจะนำคุณกลับไปหน้า Login', timer: 4000, timerProgressBar: true, showConfirmButton: false, allowOutsideClick: false }).then(() => logout());
         } else {
             alert('หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่');
             logout();
         }
     };
-
-    const resetTimer = () => {
-        if (!localStorage.getItem('user')) return;
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(performLogout, IDLE_TIMEOUT);
-    };
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(evt => {
-        document.addEventListener(evt, resetTimer, { passive: true });
-    });
-    
+    const resetTimer = () => { if (!localStorage.getItem('user')) return; clearTimeout(idleTimer); idleTimer = setTimeout(performLogout, IDLE_TIMEOUT); };
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(evt => document.addEventListener(evt, resetTimer, { passive: true }));
     resetTimer();
 })();
 
 // =========================================================
 // 4. HELPER COMPONENTS
 // =========================================================
-function LogoComponent() {
-    return `
-        <div class="logo">
-            <img src="logo.png" alt="Logo" class="logo-img"> 
-            <span class="logo-text">AUTONURSESHIFT</span>
-        </div>
-    `;
-}
-
+function LogoComponent() { return `<div class="logo"><img src="logo.png" alt="Logo" class="logo-img"><span class="logo-text">AUTONURSESHIFT</span></div>`; }
 function SuccessCardComponent(props) {
     const { title, message, btnText, btnLink } = props;
     const messageHtml = message.map(text => `<span class="sub-text">${text}</span>`).join('');
-
-    return `
-        <div class="success-box fade-in">
-            <div class="success-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <h2>${title}</h2>
-            <div class="text-wrapper">
-                ${messageHtml}
-            </div>
-            <a href="${btnLink}" class="goto-login-btn">${btnText}</a>
-        </div>
-    `;
+    return `<div class="success-box fade-in"><div class="success-icon"><i class="fas fa-check-circle"></i></div><h2>${title}</h2><div class="text-wrapper">${messageHtml}</div><a href="${btnLink}" class="goto-login-btn">${btnText}</a></div>`;
 }
 
 // =========================================================
-// 5. SMART NOTIFICATION SYSTEM (Fixed: Global Interval)
+// 5. SMART REAL-TIME NOTIFICATION (SOCKET.IO)
 // =========================================================
 
 function showSmartToast(message) {
@@ -403,113 +298,65 @@ function showSmartToast(message) {
     toast.className = 'notification-toast'; 
     toast.innerHTML = `
         <div style="margin-right: 15px; font-size: 20px;">🔔</div>
-        <div>
-            <strong style="display: block; color: #333;">แจ้งเตือนใหม่</strong>
-            <small style="color: #666;">${message}</small>
-        </div>
-    `;
-
+        <div><strong style="display: block; color: #333;">แจ้งเตือนใหม่</strong><small style="color: #666;">${message}</small></div>`;
     document.body.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => toast.remove(), 500);
-    }, 5000);
+    setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 500); }, 5000);
 }
 
-function initNotificationSystem(userId, token) {
-    // [Fix] ฆ่า Timer ตัวเก่าทิ้งเสมอ ก่อนเริ่มตัวใหม่ (ป้องกันการรันซ้อน)
-    if (window.notificationInterval) {
-        clearInterval(window.notificationInterval);
-        window.notificationInterval = null;
-    }
+/**
+ * [แก้ไขใหม่] ฟังก์ชันเริ่มระบบ Real-time Notification
+ * แทนที่ระบบ Polling (20 วินาทีเดิม)
+ */
+function initSocketNotificationSystem() {
+    if (window.socket && window.socket.connected) return;
 
-    let lastCount = 0;
-    let isFirstRun = true;
+    const user = getUser();
+    const token = localStorage.getItem('token');
+    if (!user || !token) return;
 
-    const checkNoti = () => {
-        // [Fix] ดึง Token ล่าสุดเสมอ
-        const currentToken = localStorage.getItem('token');
-        
-        // [Fix] ถ้าไม่มี Token (เช่น Logout แล้ว) ให้หยุดทำงานทันที
-        if (!currentToken) {
-            if (window.notificationInterval) {
-                console.log("No token detected: Stopping notification system");
-                clearInterval(window.notificationInterval);
-                window.notificationInterval = null;
+    console.log("🚀 Starting Real-time Notification System (Socket.io)...");
+
+    // สร้างการเชื่อมต่อ
+    window.socket = io(API_BASE, {
+        transports: ["websocket"],
+        withCredentials: true,
+        reconnection: true
+    });
+
+    // เมื่อเชื่อมต่อสำเร็จ
+    window.socket.on('connect', () => {
+        console.log('✅ Socket connected. ID:', window.socket.id);
+        window.socket.emit('register_user', user.UserID);
+    });
+
+    // เมื่อได้รับการแจ้งเตือนใหม่ (Real-time)
+    window.socket.on('receive_notification', (data) => {
+        // แสดง Toast แจ้งเตือน
+        showSmartToast(data.message || "มีรายการอัปเดตใหม่ส่งถึงคุณ!");
+
+        // อัปเดตตัวเลข Badge ทันที
+        const badge = document.querySelector('#unread-count');
+        if (badge && data.unreadCount !== undefined) {
+            badge.innerText = data.unreadCount > 99 ? '99+' : data.unreadCount;
+            if (data.unreadCount > 0) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
             }
-            return;
         }
 
-        fetch(`${API_BASE}/api/notifications/unread-count/${userId}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${currentToken}`,
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(res => {
-            // [Fix] ถ้าเจอ 401/403 (Token หมดอายุ) ให้สั่งหยุดถาวร
-            if (res.status === 401 || res.status === 403) {
-                console.warn("Token Invalid (403/401): Stopping Notification Polling");
-                if (window.notificationInterval) {
-                    clearInterval(window.notificationInterval);
-                    window.notificationInterval = null;
-                }
-                return null;
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (!data || !data.success) return;
+        // รีเฟรชรายการในหน้า notifications.html (ถ้าเปิดอยู่)
+        if (typeof loadNotifications === 'function') loadNotifications();
+    });
 
-            const currentCount = data.count;
-
-            if (!isFirstRun && currentCount > lastCount) {
-                showSmartToast("มีคำขอใหม่ส่งถึงคุณ! กรุณาเช็กที่เมนูแจ้งเตือน");
-                if (typeof refreshNotificationUI === 'function') {
-                    refreshNotificationUI(currentCount);
-                }
-            }
-
-            const badge = document.getElementById('unread-count');
-            if (badge) {
-                badge.innerText = currentCount > 99 ? '99+' : currentCount;
-                if (currentCount > 0) {
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            }
-
-            lastCount = currentCount;
-            isFirstRun = false;
-        })
-        .catch(err => {
-            console.error("Notification Polling Error:", err);
-            // Network Error ชั่วคราวปล่อยให้ลองใหม่ได้ ไม่ต้องหยุด Loop
-        });
-    };
-
-    // เริ่ม Timer และเก็บ ID ใส่ window
-    console.log("Starting Notification System...");
-    window.notificationInterval = setInterval(checkNoti, 20000); // เช็กทุก 20 วินาที
-    checkNoti(); // รันครั้งแรกทันที
+    window.socket.on('connect_error', (err) => console.error('❌ Socket Error:', err.message));
 }
 
-// เรียกใช้งานอัตโนมัติ (Self-Invoking)
+// เริ่มระบบแจ้งเตือนอัตโนมัติ (Self-Invoking)
 (function() {
     const user = getUser();
     const token = localStorage.getItem('token');
-    
-    // ตรวจสอบ user และ token ให้แน่ใจก่อนเริ่มระบบ
-    if (user && user.UserID && token) {
-        initNotificationSystem(user.UserID, token);
-    } else {
-        // ถ้าไม่มี User ให้เคลียร์ Timer ทิ้ง (กันเหนียว)
-        if (window.notificationInterval) {
-            clearInterval(window.notificationInterval);
-            window.notificationInterval = null;
-        }
+    if (user && token) {
+        initSocketNotificationSystem();
     }
-    
 })();
