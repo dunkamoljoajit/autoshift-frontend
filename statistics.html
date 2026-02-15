@@ -88,18 +88,22 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3 mb-4 text-center">
-            <div class="glass-card p-4 shadow-lg border-b-4 border-indigo-500">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">รวมเวร</p>
-                <p class="text-3xl font-black text-indigo-600" id="totalShifts">0</p>
+        <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+            <div class="glass-card p-3 shadow-lg border-b-4 border-indigo-500">
+                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">รวมเวร</p>
+                <p class="text-2xl font-black text-indigo-600" id="totalShifts">0</p>
             </div>
-            <div class="glass-card p-4 shadow-lg border-b-4 border-emerald-500">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ชั่วโมง</p>
-                <p class="text-3xl font-black text-emerald-500" id="totalHours">0</p>
+            <div class="glass-card p-3 shadow-lg border-b-4 border-emerald-500">
+                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">ชั่วโมง</p>
+                <p class="text-2xl font-black text-emerald-500" id="totalHours">0</p>
             </div>
-            <div class="glass-card p-4 shadow-lg border-b-4 border-orange-400">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">วันว่าง/หยุด</p>
-                <p class="text-3xl font-black text-orange-500" id="totalOffDays">0</p>
+            <div class="glass-card p-3 shadow-lg border-b-4 border-orange-400">
+                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">แลกเวร</p>
+                <p class="text-2xl font-black text-orange-500" id="totalSwaps">0</p>
+            </div>
+            <div class="glass-card p-3 shadow-lg border-b-4 border-pink-400">
+                <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">ซื้อ/ขาย</p>
+                <p class="text-2xl font-black text-pink-500" id="totalTrades">0</p>
             </div>
         </div>
 
@@ -194,33 +198,47 @@
 
         function renderTable(details) {
             const tbody = document.getElementById('monthlyShiftTableBody');
-            const yearTH = document.getElementById('yearSelector').value;
-            const yearAD = parseInt(yearTH) - 543;
-            
             tbody.innerHTML = '';
             
             if (!details || details.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-300 font-bold">ไม่มีข้อมูล</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-slate-300 font-bold">ไม่มีข้อมูล</td></tr>`;
                 return;
             }
 
             details.forEach((item) => {
-                // คำนวณวันว่างรายเดือน
-                const daysInMonth = new Date(yearAD, item.month, 0).getDate();
-                const offDays = daysInMonth - (item.total || 0);
-
                 const row = document.createElement('tr');
                 row.className = "hover:bg-indigo-50/30 cursor-pointer border-b border-slate-50 transition-all";
                 row.onclick = () => toggleDetails(row, item);
                 row.innerHTML = `
                     <td class="px-6 py-4 font-bold text-slate-700">${monthNamesShort[item.month - 1]}</td>
-                    <td class="px-2 py-4 text-center"><span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black">${item.total}</span></td>
-                    <td class="px-2 py-4 text-center text-emerald-600 font-semibold">${item.morning}</td>
-                    <td class="px-2 py-4 text-center text-orange-600 font-semibold">${item.afternoon}</td>
-                    <td class="px-2 py-4 text-center text-indigo-600 font-semibold">${item.night}</td>
-                    <td class="px-2 py-4 text-center text-slate-400 font-medium">${offDays} วัน</td>`; // เพิ่มคอลัมน์วันว่าง
+                    <td class="px-2 py-4 text-center"><span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black">${item.total || 0}</span></td>
+                    <td class="px-2 py-4 text-center text-emerald-600 font-semibold">${item.morning || 0}</td>
+                    <td class="px-2 py-4 text-center text-orange-600 font-semibold">${item.afternoon || 0}</td>
+                    <td class="px-2 py-4 text-center text-indigo-600 font-semibold">${item.night || 0}</td>`;
                 tbody.appendChild(row);
             });
+        }
+        function updateCards(data) {
+            // 🟢 ถ้าไม่มีข้อมูล ให้แสดงเป็น 0 และหยุดทำงาน ป้องกัน Error สีแดง
+            if (!data) {
+                document.getElementById('totalShifts').textContent = '0';
+                document.getElementById('totalHours').textContent = '0';
+                document.getElementById('totalSwaps').textContent = '0';
+                document.getElementById('totalTrades').textContent = '0';
+                return;
+            }
+
+            // ดึงค่าจาก Data (รองรับทั้งแบบสรุปปีและแบบรายเดือน)
+            const total = data.totalShifts || data.total || 0;
+            const hours = data.totalHours || (total * 8); // คำนวณชั่วโมงเวรละ 8 ชม.
+            const swaps = data.totalSwaps || data.exchanges || 0;
+            const trades = data.totalTrades || ( (data.bought || 0) + (data.sold || 0) ) || 0;
+
+            // อัปเดตตัวเลขลงใน Card บนหน้าจอ
+            document.getElementById('totalShifts').textContent = total.toLocaleString();
+            document.getElementById('totalHours').textContent = hours.toLocaleString();
+            document.getElementById('totalSwaps').textContent = swaps.toLocaleString();
+            document.getElementById('totalTrades').textContent = trades.toLocaleString();
         }
 
         function toggleDetails(row, data) {
