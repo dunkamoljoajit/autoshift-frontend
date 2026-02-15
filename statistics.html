@@ -188,12 +188,16 @@
         function filterAndRender() {
             if (!fullYearDataCache) return;
             const selectedMonth = document.getElementById('monthSelector').value;
-            let displayList = (selectedMonth === "all") 
-                ? fullYearDataCache.monthlyDetails 
-                : fullYearDataCache.monthlyDetails.filter(m => m.month === parseInt(selectedMonth));
 
-            updateCards(selectedMonth === "all" ? fullYearDataCache : displayList[0]);
-            renderTable(displayList);
+            if (selectedMonth === "all") {
+                updateCards(fullYearDataCache);
+                renderTable(fullYearDataCache.monthlyDetails);
+            } else {
+                // ค้นหาข้อมูลเดือนนั้นๆ จากรายการรายเดือนที่ API ส่งมา
+                const monthData = fullYearDataCache.monthlyDetails.find(m => m.month === parseInt(selectedMonth));
+                updateCards(monthData); // ส่งข้อมูลเดือนที่เลือกไปอัปเดต Card
+                renderTable(monthData ? [monthData] : []);
+            }
         }
 
         function renderTable(details) {
@@ -219,23 +223,21 @@
             });
         }
         function updateCards(data) {
-            // 🟢 ถ้าไม่มีข้อมูล ให้แสดงเป็น 0 และหยุดทำงาน ป้องกัน Error สีแดง
             if (!data) {
-                document.getElementById('totalShifts').textContent = '0';
-                document.getElementById('totalHours').textContent = '0';
-                document.getElementById('totalSwaps').textContent = '0';
-                document.getElementById('totalTrades').textContent = '0';
+                // ถ้าไม่มีข้อมูล ให้รีเซ็ตเป็น 0 ทั้งหมด
+                const ids = ['totalShifts', 'totalHours', 'totalSwaps', 'totalTrades'];
+                ids.forEach(id => { if(document.getElementById(id)) document.getElementById(id).textContent = '0'; });
                 return;
             }
 
-            // ดึงค่าจาก Data (รองรับทั้งแบบสรุปปีและแบบรายเดือน)
-            const total = data.totalShifts || data.total || 0;
-            const hours = data.totalHours || (total * 8); // คำนวณชั่วโมงเวรละ 8 ชม.
-            const swaps = data.totalSwaps || data.exchanges || 0;
-            const trades = data.totalTrades || ( (data.bought || 0) + (data.sold || 0) ) || 0;
+            // ดึงค่าสถิติ (รองรับทั้งแบบสรุปปี และแบบรายเดือนจาก Cache)
+            const shifts = data.totalShifts || data.total || 0;
+            const hours = data.totalHours || (shifts * 8);
+            const swaps = data.totalSwaps || data.ExchangesMade || 0;
+            const trades = data.totalTrades || ((data.ShiftsBought || 0) + (data.ShiftsSold || 0)) || 0;
 
-            // อัปเดตตัวเลขลงใน Card บนหน้าจอ
-            document.getElementById('totalShifts').textContent = total.toLocaleString();
+            // แสดงผลบนหน้าจอ
+            document.getElementById('totalShifts').textContent = shifts.toLocaleString();
             document.getElementById('totalHours').textContent = hours.toLocaleString();
             document.getElementById('totalSwaps').textContent = swaps.toLocaleString();
             document.getElementById('totalTrades').textContent = trades.toLocaleString();
