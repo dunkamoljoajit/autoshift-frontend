@@ -189,12 +189,20 @@
         }
 
         function updateCards(data) {
-            if (!data) return;
-            document.getElementById('totalShifts').textContent = (data.totalShifts || data.total || 0).toLocaleString();
-            document.getElementById('totalHours').textContent = (data.totalHours || (data.total * 8) || 0).toLocaleString();
-            document.getElementById('totalLeaves').textContent = (data.totalLeaves || 0).toLocaleString();
-        }
+            // 🟢 เพิ่มบรรทัดนี้: ถ้าไม่มีข้อมูล ให้แสดงเป็น 0 และหยุดทำงาน ไม่ให้ระบบ Crash
+            if (!data) {
+                document.getElementById('totalShifts').textContent = '0';
+                document.getElementById('totalHours').textContent = '0';
+                return;
+            }
 
+            // ป้องกันค่าภายในเป็น null/undefined ด้วย || 0
+            const total = data.totalShifts || data.total || 0;
+            const hours = data.totalHours || (total * 8) || 0;
+
+            document.getElementById('totalShifts').textContent = total.toLocaleString();
+            document.getElementById('totalHours').textContent = hours.toLocaleString();
+        }
         function renderTable(details) {
             const tbody = document.getElementById('monthlyShiftTableBody');
             tbody.innerHTML = '';
