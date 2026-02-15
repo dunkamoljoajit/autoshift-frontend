@@ -160,20 +160,30 @@
     const API_BASE_URL = 'https://autoshift-backend.onrender.com';
     let currentDataCache = null; 
 
+    // เพิ่มตัวแปรภายนอกเพื่อเก็บสถานะการ Fetch
+    let fetchController = null;
+
     async function fetchData() {
+        // 1. ยกเลิก Request เดิมที่ค้างอยู่ (ถ้ามี)
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+
         const yearTH = document.getElementById('yearSelector').value;
         const yearAD = parseInt(yearTH) - 543;
         const tbody = document.getElementById('monthlyShiftTableBody');
+        
+        // แสดงสถานะการโหลด
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-indigo-400 text-lg"></i></td></tr>`;
 
         try {
             const userStr = localStorage.getItem('user');
             const token = localStorage.getItem('token');
-            if (!userStr || !token) throw new Error("No Auth Token Found");
+            if (!userStr || !token) throw new Error("ไม่พบสิทธิ์การเข้าใช้งาน (No Token)");
 
             const user = JSON.parse(userStr);
             const response = await fetch(`${API_URL}/api/my-stats`, {
                 method: 'POST',
+                signal: fetchController.signal, // ส่งสัญญาณยกเลิกไปยัง fetch
                 headers: { 
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${token}` 
@@ -181,7 +191,11 @@
                 body: JSON.stringify({ userId: user.UserID, year: yearAD })
             });
 
-            // ตรวจสอบ Error จากฝั่ง Server
+            if (response.status === 401) {
+                localStorage.clear();
+                throw new Error("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
+            }
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Server Error: ${response.status}`);
@@ -193,10 +207,17 @@
                 filterAndRender();
             }
         } catch (error) {
-            console.error("Detailed Error:", error); // ดู Error เต็มๆ ใน F12 Console
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-400">
-                เกิดข้อผิดพลาด: ${error.message}
-            </td></tr>`;
+            // ไม่ต้องแสดง Error หากเป็นการยกเลิก Request โดยตั้งใจ
+            if (error.name === 'AbortError') return;
+
+            console.error("Detailed Error:", error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-6 text-red-400">
+                        <i class="fas fa-wifi-slash mb-2"></i><br>
+                        เกิดข้อผิดพลาด: ${error.message}
+                    </td>
+                </tr>`;
         }
     }
 
