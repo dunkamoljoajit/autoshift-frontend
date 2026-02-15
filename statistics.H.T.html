@@ -160,55 +160,43 @@
     const API_BASE_URL = 'https://autoshift-backend.onrender.com';
     let currentDataCache = null; 
 
-    async function fetchData(year, month) {
-        const container = document.getElementById('nurseListContainer');
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('กรุณาเข้าสู่ระบบก่อน');
-            window.location.href = 'index.html'; 
-            return;
-        }
-
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-40 text-gray-400 animate-pulse">
-                <i class="fas fa-circle-notch fa-spin text-3xl mb-3 text-indigo-400"></i>
-                <p class="text-sm">กำลังเชื่อมต่อฐานข้อมูล...</p>
-            </div>`;
+    async function fetchData() {
+        const yearTH = document.getElementById('yearSelector').value;
+        const yearAD = parseInt(yearTH) - 543;
+        const tbody = document.getElementById('monthlyShiftTableBody');
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10"><i class="fas fa-circle-notch fa-spin text-indigo-400 text-lg"></i></td></tr>`;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/admin/team-stats?year=${year}&month=${month}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`, 
-                    'Content-Type': 'application/json'
-                }
+            const userStr = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            if (!userStr || !token) throw new Error("No Auth Token Found");
+
+            const user = JSON.parse(userStr);
+            const response = await fetch(`${API_URL}/api/my-stats`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ userId: user.UserID, year: yearAD })
             });
 
-            if (response.status === 401) {
-                alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
-                window.location.href = 'index.html';
-                return;
+            // ตรวจสอบ Error จากฝั่ง Server
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Server Error: ${response.status}`);
             }
-
-            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
 
             const result = await response.json();
-            
             if (result.success) {
-                renderDashboard(result);
-            } else {
-                container.innerHTML = `<div class="text-center text-red-500 py-10"><i class="fas fa-exclamation-circle text-2xl mb-2"></i><br>${result.message || 'เกิดข้อผิดพลาด'}</div>`;
+                fullYearDataCache = result.data;
+                filterAndRender();
             }
-
         } catch (error) {
-            console.error('Fetch Error:', error);
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-10">
-                    <i class="fas fa-wifi text-3xl mb-2 text-gray-300"></i>
-                    <p>ไม่สามารถเชื่อมต่อ Server ได้</p>
-                    <p class="text-xs text-gray-300 mt-1">(ตรวจสอบว่ารัน node index.js หรือยัง)</p>
-                    <button onclick="changeFilter()" class="mt-4 px-4 py-2 bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold">ลองใหม่</button>
-                </div>`;
+            console.error("Detailed Error:", error); // ดู Error เต็มๆ ใน F12 Console
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-400">
+                เกิดข้อผิดพลาด: ${error.message}
+            </td></tr>`;
         }
     }
 
