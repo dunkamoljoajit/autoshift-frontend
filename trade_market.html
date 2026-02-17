@@ -190,7 +190,18 @@
             currentUser = JSON.parse(userStr);
             currentUserId = currentUser.UserID; 
 
-            reloadData();
+            // --- ส่วนที่เพิ่มเข้าไปใหม่ ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetTab = urlParams.get('tab');
+
+            if (targetTab === 'my-posts') {
+                // ถ้ามีพารามิเตอร์ tab=my-posts ให้สลับไปแท็บ "ของฉัน" ทันที
+                switchTab('my-posts');
+            } else {
+                // ถ้าไม่มีพารามิเตอร์ ให้โหลดข้อมูลหน้าตลาดตามปกติ
+                reloadData();
+            }
+            // -----------------------
         });
 
         // ✅ ฟังก์ชันคำนวณเวลาที่ปลอดภัย

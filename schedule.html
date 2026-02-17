@@ -556,53 +556,76 @@
             const btn = document.getElementById('btn-confirm-sell');
             const token = localStorage.getItem('token'); 
             
-            if(!price) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุราคาที่ต้องการขาย', 'warning');
+            // 1. Validation: ตรวจสอบข้อมูลเบื้องต้น
+            if(!price || price <= 0) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'ข้อมูลไม่ครบถ้วน',
+                    text: 'กรุณาระบุราคาที่ต้องการขายให้ถูกต้อง',
+                    confirmButtonColor: '#4f46e5'
+                });
+            }
 
-            // เปลี่ยนสถานะปุ่มกันกดย้ำ
+            // 2. UI State: เปลี่ยนสถานะปุ่มเพื่อป้องกันการกดย้ำ (Double Click)
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> กำลังบันทึก...';
             btn.disabled = true;
 
             try {
-                // ยิงไปที่ API ที่เราเพิ่งสร้าง
+                // 3. API Call: ส่งข้อมูลไปยัง Backend
                 const res = await fetch(`${API_BASE}/api/sell-shift`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // ✅ แนบ Token
+                        'Authorization': `Bearer ${token}` 
                     },
                     body: JSON.stringify({
-                        userId: currentUser.UserID, // ส่ง UserID
-                        scheduleId: scheduleId,     // ส่ง ScheduleID
-                        price: price,               // ส่ง Price
-                        message: message            // ส่ง Message
+                        userId: currentUser.UserID,
+                        scheduleId: scheduleId,
+                        price: price,
+                        message: message
                     })
                 });
 
-                if (res.status === 401) { window.location.href = 'login.html'; return; } // ✅ 401 Check
+                // 4. Check Authentication: ถ้า Token หมดอายุให้ไปหน้า Login
+                if (res.status === 401) { 
+                    window.location.href = 'login.html'; 
+                    return; 
+                }
                 
                 const data = await res.json();
                 
+                // 5. Success Handling
                 if(data.success) {
-                    closeSellModal();
-                    Swal.fire({
+                    closeSellModal(); // ปิดหน้าต่าง Modal ขาย
+                    
+                    await Swal.fire({
                         icon: 'success',
-                        title: 'ประกาศขายสำเร็จ!',
-                        text: 'ข้อมูลถูกบันทึกลงตาราง PostSell แล้ว',
+                        title: 'ลงประกาศขายสำเร็จ!',
+                        text: 'ระบบกำลังนำคุณไปยังหน้าประกาศของคุณ',
                         timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        // 🔴🔴🔴 Redirect ไปที่หน้าตลาดขายเวร (แก้ชื่อไฟล์ตรงนี้) 🔴🔴🔴
-                        window.location.href = 'trade_market.html';
+                        showConfirmButton: false,
+                        customClass: { popup: 'rounded-3xl' }
                     });
+
+                    // 🔴 จุดสำคัญ: Redirect พร้อมส่ง Parameter เพื่อไปเปิด Tab "ของฉัน"
+                    window.location.href = 'trade_market.html?tab=my-posts';
+
                 } else {
+                    // กรณี Backend แจ้ง Error เช่น เวรนี้ถูกขายไปแล้ว หรือติดธุรกรรมอื่น
                     throw new Error(data.message || 'เกิดข้อผิดพลาดในการประกาศขาย');
                 }
 
             } catch(e) {
-                console.error(e);
-                Swal.fire('Error', e.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+                console.error('Confirm Sell Error:', e);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ทำรายการไม่สำเร็จ',
+                    text: e.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ โปรดลองอีกครั้ง',
+                    confirmButtonColor: '#ef4444'
+                });
             } finally {
+                // คืนค่าปุ่มกลับมาเป็นปกติ
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
