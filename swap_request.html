@@ -900,6 +900,13 @@ function closeEditPostModal() {
         setTimeout(() => modal.classList.add('hidden'), 300); 
     }
 }
+function clearEditDate() { 
+    const el = document.getElementById('edit-desired-date');
+    if (el && el._flatpickr) {
+        el._flatpickr.clear(); 
+        console.log("Date cleared successfully");
+    }
+}
 </script>
 </body>
 </html>
