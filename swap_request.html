@@ -550,6 +550,65 @@ async function fetchMyActivePost() {
         container.innerHTML = '<div class="text-xs text-red-400">โหลดข้อมูลผิดพลาด</div>'; 
     }
 }
+// --- เพิ่ม/ตรวจสอบส่วนนี้ที่ด้านบนของ <script> ---
+window.openEditPostModal = openEditPostModal;
+
+async function openEditPostModal(post) {
+    const token = localStorage.getItem('token');
+    
+    try {
+        // 1. ตรวจสอบสถานะก่อนว่าเวรนี้กำลังรอแลก (Pending) หรือไม่ เพื่อความปลอดภัย
+        const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${post.ScheduleID}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const statusData = await checkRes.json();
+
+        if (statusData.success && statusData.isPending) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'ไม่สามารถแก้ไขได้',
+                text: 'เวรนี้กำลังมีคำขอแลกเปลี่ยนค้างอยู่ กรุณาจัดการคำขอนั้นก่อนแก้ไขประกาศ',
+                confirmButtonColor: '#4f46e5'
+            });
+        }
+
+        // 2. ตั้งค่าข้อมูลใน Modal แก้ไข
+        document.getElementById('edit-post-id').value = post.PostID;
+        document.getElementById('edit-post-note').value = post.Note || '';
+        
+        // ตั้งค่าวันที่ใน Flatpickr (ถ้ามี)
+        if (post.DesiredDate && document.getElementById('edit-desired-date')._flatpickr) {
+            document.getElementById('edit-desired-date')._flatpickr.setDate(post.DesiredDate);
+        }
+
+        // 3. โหลดรายการเวรของคุณลงใน Select ของ Modal แก้ไข
+        const select = document.getElementById('edit-post-schedule-id');
+        select.innerHTML = '<option value="" disabled>🔄 กำลังโหลด...</option>';
+
+        const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            select.innerHTML = data.results.map(s => `
+                <option value="${s.ScheduleID}" ${s.ScheduleID == post.ScheduleID ? 'selected' : ''}>
+                    ${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}
+                </option>
+            `).join('');
+        }
+
+        // 4. แสดง Modal
+        const modal = document.getElementById('editPostModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        document.getElementById('editPostModalContent').classList.replace('scale-90', 'scale-100');
+
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'ไม่สามารถเปิดหน้าแก้ไขได้ในขณะนี้', 'error');
+    }
+}
 
 async function deletePost(postId, scheduleId) {
     const confirm = await Swal.fire({ title: 'ลบประกาศนี้?', text: 'คุณจะยกเลิกการประกาศหาคนแลก', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
