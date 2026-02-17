@@ -519,21 +519,36 @@ async function fetchMyActivePost() {
     const container = document.getElementById('my-posts-list');
     const token = localStorage.getItem('token'); 
     try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${currentUser.UserID}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`${API_BASE}/api/posts/user/${currentUser.UserID}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
         const data = await res.json();
+        
         if(!data.success || !data.results.length) { 
             container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs italic">ยังไม่มีประกาศของคุณ</div>'; 
             return; 
         }
+        
         container.innerHTML = data.results.map(post => `
             <div class="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl p-4 border border-pink-100 shadow-sm mb-2">
                 <div class="flex justify-between items-center mb-1">
                     <span class="text-[10px] font-bold text-pink-500 uppercase">ประกาศแลกเวร</span>
-                    <button onclick="window.deletePost('${post.PostID}', '${post.ScheduleID}')" class="text-slate-300 hover:text-red-500 transition"><i class="fas fa-trash-alt"></i></button>
+                    <div class="flex gap-2">
+                        <button onclick='window.openEditPostModal(${JSON.stringify(post)})' 
+                                class="text-slate-300 hover:text-yellow-500 transition">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="window.deletePost('${post.PostID}', '${post.ScheduleID}')" 
+                                class="text-slate-300 hover:text-red-500 transition">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="text-xs font-bold">${moment(post.Nurse_Date).add(543, 'years').format('D MMM YY')} (${post.ShiftName})</div>
             </div>`).join('');
-    } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดข้อมูลผิดพลาด</div>'; }
+    } catch(e) { 
+        container.innerHTML = '<div class="text-xs text-red-400">โหลดข้อมูลผิดพลาด</div>'; 
+    }
 }
 
 async function deletePost(postId, scheduleId) {
