@@ -118,9 +118,9 @@
                                 </div>
                             </div>
                             <div>
-                                <button type="submit" id="search-btn" class="w-full h-[50px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transition active:scale-95">
+                                <button type="submit" id="search-btn" class="...">
                                     <span id="search-btn-text" class="flex items-center gap-2"><i class="fas fa-search"></i> ค้นหา</span>
-                                    <i id="search-loading" class="fas fa-spinner fa-spin hidden"></i>
+                                    <i id="search-loading" class="fas fa-spinner fa-spin hidden"></i> 
                                 </button>
                             </div>
                         </form>
@@ -350,21 +350,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // --- 2. ฟังก์ชันค้นหา (ยืดหยุ่นกะเวลา) ---
-
 async function handleSearch(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    
     const date = document.getElementById('searchDate').value; 
     const shiftId = document.getElementById('searchShift').value;
     const container = document.getElementById('searchResults');
     const token = localStorage.getItem('token');
     
+    // ดึง Element มาเตรียมไว้
+    const btnText = document.getElementById('search-btn-text');
+    const loadingIcon = document.getElementById('search-loading');
+    const searchBtn = document.getElementById('search-btn');
+
     if(!date) return Swal.fire({ icon: 'warning', title: 'กรุณาเลือกวันที่ต้องการ' });
 
-    // --- เริ่มต้นการค้นหา: แสดงตัวหมุน และซ่อนข้อความปุ่ม ---
-    document.getElementById('search-btn-text').classList.add('hidden');
-    document.getElementById('search-loading').classList.remove('hidden');
-    // ปิดการใช้งานปุ่มชั่วคราวป้องกันการกดซ้ำ
-    document.getElementById('search-btn').disabled = true;
+    // --- เริ่มการทำงาน: แสดงตัวหมุน ---
+    btnText.classList.add('hidden');
+    loadingIcon.classList.remove('hidden');
+    searchBtn.disabled = true;
 
     try {
         const response = await fetch(`${API_BASE}/api/swaps/search`, {
@@ -393,15 +397,16 @@ async function handleSearch(e) {
                 </div>`).join('');
         } else {
             document.getElementById('result-count').innerText = "ไม่พบข้อมูล";
-            container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 italic border-2 border-dashed border-slate-100 rounded-[2rem]">ไม่พบกะเวลาที่ต้องการในระบบ</div>`;
+            container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 italic">ไม่พบกะเวลาที่ต้องการในระบบ</div>`;
         }
     } catch (err) { 
         console.error(err);
         Swal.fire('Error', 'การเชื่อมต่อผิดพลาด', 'error'); 
     } finally {
-        document.getElementById('search-btn-text').classList.remove('hidden');
-        document.getElementById('search-loading').classList.add('hidden');
-        document.getElementById('search-btn').disabled = false;
+        // --- จบการทำงาน: ต้องกลับมาสถานะปกติเสมอ ---
+        btnText.classList.remove('hidden');
+        loadingIcon.classList.add('hidden'); // ซ่อนตัวหมุน
+        searchBtn.disabled = false;
     }
 }
 
