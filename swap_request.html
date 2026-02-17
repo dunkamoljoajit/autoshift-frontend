@@ -291,7 +291,9 @@
     <script>
 // --- 1. Global Variables & Initialization ---
 let currentUser = null;
-const API_BASE = window.API_BASE || ''; 
+if (typeof API_BASE === 'undefined') {
+    window.API_BASE = ''; // หรือค่า default ที่คุณต้องการ
+}
 
 // ผูกฟังก์ชันเข้ากับ Window เพื่อให้ HTML เรียกใช้ได้
 window.openPostModal = openPostModal;
