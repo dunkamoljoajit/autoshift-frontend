@@ -290,6 +290,156 @@
 
     <script>
     let currentUser = null;
+    async function openRequestModal(targetId, targetName, scheduleId) {
+        document.getElementById('modal-target-name').innerText = targetName;
+        document.getElementById('modal-target-user-id').value = targetId;
+        document.getElementById('modal-target-schedule-id').value = scheduleId; 
+        document.getElementById('modal-reason').value = '';
+        
+        const select = document.getElementById('my-offer-shift');
+        select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบเวรที่ปลอดภัยสำหรับคุณ...</option>';
+        
+        // แสดง Modal
+        const modal = document.getElementById('requestModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        document.getElementById('requestModalContent').classList.replace('scale-90', 'scale-100');
+
+        try {
+            const token = localStorage.getItem('token');
+            
+            // เรียก API โดยพ่วง ID เวรของเพื่อน เพื่อให้ Backend รัน checkFatigueStatus กรองผลลัพธ์
+            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`, { 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (data.results.length > 0) {
+                    let optionsHtml = '<option value="">-- เลือกเวรของคุณที่ปลอดภัยต่อตารางวอร์ด --</option>';
+                    data.results.forEach(s => {
+                        const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
+                        optionsHtml += `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
+                    });
+                    select.innerHTML = optionsHtml;
+                } else {
+                    // กรณีไม่มีเวรที่ผ่านกฎ (เช่น หัวหน้าพยาบาลจะแลกเวรบ่าย/ดึก หรือจะควงเวรดึก-เช้า)
+                    let msg = data.message || "ไม่มีเวรของคุณที่สามารถแลกกับเวรนี้ได้โดยไม่ผิดกฎความปลอดภัย";
+                    select.innerHTML = `<option value="" disabled>${msg}</option>`;
+                    Swal.fire({ icon: 'info', title: 'แลกไม่ได้', text: msg, confirmButtonColor: '#4f46e5' });
+                }
+            }
+        } catch (err) {
+            select.innerHTML = '<option value="" disabled>❌ ไม่สามารถโหลดข้อมูลความปลอดภัยได้</option>';
+        }
+    }
+
+    function closePostModal() { 
+        document.getElementById('postModal').classList.add('opacity-0'); 
+        document.getElementById('postModalContent').classList.replace('scale-100', 'scale-90');
+        setTimeout(() => document.getElementById('postModal').classList.add('hidden'), 300); 
+    }
+    function closeRequestModal() { 
+        document.getElementById('requestModal').classList.add('opacity-0'); 
+        document.getElementById('requestModalContent').classList.replace('scale-100', 'scale-90');
+        setTimeout(() => document.getElementById('requestModal').classList.add('hidden'), 300); 
+    }
+    function closeEditPostModal() { 
+        document.getElementById('editPostModal').classList.add('opacity-0'); 
+        document.getElementById('editPostModalContent').classList.replace('scale-100', 'scale-90');
+        setTimeout(() => document.getElementById('editPostModal').classList.add('hidden'), 300); 
+    }
+
+    async function handleCreatePost(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const scheduleId = document.getElementById('post-my-shift').value;
+        
+        if(!scheduleId) return Swal.fire('กรุณาเลือกเวรของคุณ', '', 'warning');
+
+        const btn = document.getElementById('btn-create-post');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+        btn.disabled = true;
+
+        try {
+            // 1. ตรวจสอบสถานะเวรแบบ Real-time ก่อนบันทึก
+            const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${scheduleId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const statusData = await checkRes.json();
+
+            // หากติดธุรกรรม ให้แจ้งเตือนและยกเลิกการสร้างโพสต์
+            if (statusData.success && (statusData.isSelling || statusData.isPending || statusData.isInTransaction)) {
+                let reason = "เวรนี้กำลังอยู่ในระหว่างธุรกรรมอื่น";
+                if (statusData.isSelling) reason = "เวรนี้ถูกประกาศขายอยู่ในตลาด";
+                if (statusData.isInTransaction) reason = "เวรนี้อยู่ในขั้นตอนรออนุมัติการซื้อขาย";
+                if (statusData.isPending) reason = "เวรนี้มีคำขอแลกเปลี่ยนค้างอยู่";
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ไม่สามารถสร้างประกาศได้',
+                    text: reason,
+                    confirmButtonColor: '#4f46e5'
+                });
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. หากผ่านการตรวจสอบ ค่อยส่งข้อมูลสร้างประกาศ
+            const res = await fetch(`${API_BASE}/api/posts/create`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                body: JSON.stringify({
+                    userId: currentUser.UserID,
+                    scheduleId: scheduleId,
+                    desiredDate: document.getElementById('post-desired-date').value,
+                    note: document.getElementById('post-note').value
+                })
+            });
+            
+            const data = await res.json();
+            if(data.success) { 
+                window.closePostModal(); 
+                fetchMyActivePost(); 
+                Swal.fire('สำเร็จ', 'ประกาศของคุณขึ้นระบบแล้ว', 'success'); 
+            } else {
+                Swal.fire('ล้มเหลว', data.message, 'error');
+            }
+        } catch (err) {
+            Swal.fire('Error', 'การเชื่อมต่อขัดข้อง', 'error');
+        } finally {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
+    async function fetchMyActivePost() {
+        const container = document.getElementById('my-posts-list');
+        const token = localStorage.getItem('token'); 
+        try {
+            const res = await fetch(`${API_BASE}/api/posts/user/${currentUser.UserID}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if(!data.success || !data.results.length) { container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีประกาศ</div>`; return; }
+            container.innerHTML = data.results.map(post => `
+                <div class="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl p-4 border border-pink-100 shadow-sm mb-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold text-pink-500">โพสต์แลกเวร</span>
+                        <div class="flex gap-2">
+                            <button onclick='window.openEditPostModal(${JSON.stringify(post)})' class="text-slate-300 hover:text-yellow-500 transition">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="window.deletePost('${post.PostID}', '${post.ScheduleID}')" class="text-slate-300 hover:text-red-500 transition">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-xs font-bold mt-1">${moment(post.Nurse_Date).add(543, 'years').format('D MMM YY')} (${post.ShiftName})</div>
+                </div>`).join('');
+        } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดผิดพลาด</div>'; }
+    }
+
 
     // --- 1. จัดเตรียมฟังก์ชันสำหรับผูกกับ Window ทันที ---
     // ย้ายการผูกขึ้นมาไว้ด้านบนสุดเพื่อให้ HTML เรียกใช้ได้ทันที
@@ -466,156 +616,6 @@
             document.getElementById('search-btn-text').classList.remove('hidden');
             document.getElementById('search-loading').classList.add('hidden');
         }
-    }
-
-    async function openRequestModal(targetId, targetName, scheduleId) {
-        document.getElementById('modal-target-name').innerText = targetName;
-        document.getElementById('modal-target-user-id').value = targetId;
-        document.getElementById('modal-target-schedule-id').value = scheduleId; 
-        document.getElementById('modal-reason').value = '';
-        
-        const select = document.getElementById('my-offer-shift');
-        select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบเวรที่ปลอดภัยสำหรับคุณ...</option>';
-        
-        // แสดง Modal
-        const modal = document.getElementById('requestModal');
-        modal.classList.remove('hidden');
-        setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        document.getElementById('requestModalContent').classList.replace('scale-90', 'scale-100');
-
-        try {
-            const token = localStorage.getItem('token');
-            
-            // เรียก API โดยพ่วง ID เวรของเพื่อน เพื่อให้ Backend รัน checkFatigueStatus กรองผลลัพธ์
-            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`, { 
-                headers: { 'Authorization': `Bearer ${token}` } 
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                if (data.results.length > 0) {
-                    let optionsHtml = '<option value="">-- เลือกเวรของคุณที่ปลอดภัยต่อตารางวอร์ด --</option>';
-                    data.results.forEach(s => {
-                        const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
-                        optionsHtml += `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
-                    });
-                    select.innerHTML = optionsHtml;
-                } else {
-                    // กรณีไม่มีเวรที่ผ่านกฎ (เช่น หัวหน้าพยาบาลจะแลกเวรบ่าย/ดึก หรือจะควงเวรดึก-เช้า)
-                    let msg = data.message || "ไม่มีเวรของคุณที่สามารถแลกกับเวรนี้ได้โดยไม่ผิดกฎความปลอดภัย";
-                    select.innerHTML = `<option value="" disabled>${msg}</option>`;
-                    Swal.fire({ icon: 'info', title: 'แลกไม่ได้', text: msg, confirmButtonColor: '#4f46e5' });
-                }
-            }
-        } catch (err) {
-            select.innerHTML = '<option value="" disabled>❌ ไม่สามารถโหลดข้อมูลความปลอดภัยได้</option>';
-        }
-    }
-
-    function closePostModal() { 
-        document.getElementById('postModal').classList.add('opacity-0'); 
-        document.getElementById('postModalContent').classList.replace('scale-100', 'scale-90');
-        setTimeout(() => document.getElementById('postModal').classList.add('hidden'), 300); 
-    }
-    function closeRequestModal() { 
-        document.getElementById('requestModal').classList.add('opacity-0'); 
-        document.getElementById('requestModalContent').classList.replace('scale-100', 'scale-90');
-        setTimeout(() => document.getElementById('requestModal').classList.add('hidden'), 300); 
-    }
-    function closeEditPostModal() { 
-        document.getElementById('editPostModal').classList.add('opacity-0'); 
-        document.getElementById('editPostModalContent').classList.replace('scale-100', 'scale-90');
-        setTimeout(() => document.getElementById('editPostModal').classList.add('hidden'), 300); 
-    }
-
-    async function handleCreatePost(e) {
-        e.preventDefault();
-        const token = localStorage.getItem('token');
-        const scheduleId = document.getElementById('post-my-shift').value;
-        
-        if(!scheduleId) return Swal.fire('กรุณาเลือกเวรของคุณ', '', 'warning');
-
-        const btn = document.getElementById('btn-create-post');
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
-        btn.disabled = true;
-
-        try {
-            // 1. ตรวจสอบสถานะเวรแบบ Real-time ก่อนบันทึก
-            const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${scheduleId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const statusData = await checkRes.json();
-
-            // หากติดธุรกรรม ให้แจ้งเตือนและยกเลิกการสร้างโพสต์
-            if (statusData.success && (statusData.isSelling || statusData.isPending || statusData.isInTransaction)) {
-                let reason = "เวรนี้กำลังอยู่ในระหว่างธุรกรรมอื่น";
-                if (statusData.isSelling) reason = "เวรนี้ถูกประกาศขายอยู่ในตลาด";
-                if (statusData.isInTransaction) reason = "เวรนี้อยู่ในขั้นตอนรออนุมัติการซื้อขาย";
-                if (statusData.isPending) reason = "เวรนี้มีคำขอแลกเปลี่ยนค้างอยู่";
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ไม่สามารถสร้างประกาศได้',
-                    text: reason,
-                    confirmButtonColor: '#4f46e5'
-                });
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
-                return;
-            }
-
-            // 2. หากผ่านการตรวจสอบ ค่อยส่งข้อมูลสร้างประกาศ
-            const res = await fetch(`${API_BASE}/api/posts/create`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                body: JSON.stringify({
-                    userId: currentUser.UserID,
-                    scheduleId: scheduleId,
-                    desiredDate: document.getElementById('post-desired-date').value,
-                    note: document.getElementById('post-note').value
-                })
-            });
-            
-            const data = await res.json();
-            if(data.success) { 
-                window.closePostModal(); 
-                fetchMyActivePost(); 
-                Swal.fire('สำเร็จ', 'ประกาศของคุณขึ้นระบบแล้ว', 'success'); 
-            } else {
-                Swal.fire('ล้มเหลว', data.message, 'error');
-            }
-        } catch (err) {
-            Swal.fire('Error', 'การเชื่อมต่อขัดข้อง', 'error');
-        } finally {
-            btn.innerHTML = originalContent;
-            btn.disabled = false;
-        }
-    }
-
-    async function fetchMyActivePost() {
-        const container = document.getElementById('my-posts-list');
-        const token = localStorage.getItem('token'); 
-        try {
-            const res = await fetch(`${API_BASE}/api/posts/user/${currentUser.UserID}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            if(!data.success || !data.results.length) { container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ยังไม่มีประกาศ</div>`; return; }
-            container.innerHTML = data.results.map(post => `
-                <div class="bg-gradient-to-br from-white to-pink-50/30 rounded-2xl p-4 border border-pink-100 shadow-sm mb-2">
-                    <div class="flex justify-between items-center">
-                        <span class="text-[10px] font-bold text-pink-500">โพสต์แลกเวร</span>
-                        <div class="flex gap-2">
-                            <button onclick='window.openEditPostModal(${JSON.stringify(post)})' class="text-slate-300 hover:text-yellow-500 transition">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="window.deletePost('${post.PostID}', '${post.ScheduleID}')" class="text-slate-300 hover:text-red-500 transition">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-xs font-bold mt-1">${moment(post.Nurse_Date).add(543, 'years').format('D MMM YY')} (${post.ShiftName})</div>
-                </div>`).join('');
-        } catch(e) { container.innerHTML = '<div class="text-xs text-red-400">โหลดผิดพลาด</div>'; }
     }
 
     async function fetchPendingApprovals() {
