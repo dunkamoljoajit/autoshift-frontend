@@ -618,13 +618,12 @@
         async function openPostModal(targetId = null) {
             const token = localStorage.getItem('token');
             const select = document.getElementById('post-my-shift');
+            const postModal = document.getElementById('postModal');
+            const postModalContent = document.getElementById('postModalContent');
             
-            // รีเซ็ตฟอร์มและแสดง Modal
+            // รีเซ็ตฟอร์มก่อนเริ่ม
             document.getElementById('createPostForm').reset();
-            document.getElementById('postModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
-
-            select.innerHTML = '<option value="" disabled selected>🔄 กำลังดึงข้อมูลเวร...</option>';
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบสถานะเวร...</option>';
 
             try {
                 const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
@@ -633,35 +632,64 @@
                 const data = await res.json();
 
                 if (data.success && data.results.length > 0) {
-                    // ค้นหาเวรที่ตรงกับ targetId ที่กดมาจากตาราง
-                    const selectedShift = data.results.find(s => s.ScheduleID == targetId);
-                    
+                    // 1. ตรวจสอบเวรที่เลือกมาจากตารางก่อน (Validation)
+                    if (targetId) {
+                        const selectedShift = data.results.find(s => s.ScheduleID == targetId);
+                        
+                        // หากพบเวรแต่ติดธุรกรรม ให้แจ้งเตือนและหยุดการทำงานทันที
+                        if (selectedShift) {
+                            let errorMessage = "";
+                            if (selectedShift.TransactionStatus) {
+                                errorMessage = "เวรนี้อยู่ในระหว่างขั้นตอนการซื้อขาย (รออนุมัติ)";
+                            } else if (selectedShift.SellingStatus === 'Open') {
+                                errorMessage = "เวรนี้ถูกตั้งขายอยู่ในตลาด ไม่สามารถนำมาแลกได้";
+                            } else if (selectedShift.ExchangeStatus === 'pending') {
+                                errorMessage = "เวรนี้มีรายการขอแลกค้างอยู่";
+                            }
+
+                            if (errorMessage) {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'ไม่สามารถแลกเวรได้',
+                                    text: errorMessage,
+                                    confirmButtonColor: '#6366f1'
+                                });
+                                return; // ❌ จบการทำงาน ไม่เปิด Modal
+                            }
+                        }
+                    }
+
+                    // 2. หากผ่านการตรวจสอบ ให้แสดง Modal
+                    postModal.classList.remove('hidden');
+                    setTimeout(() => postModal.classList.remove('opacity-0'), 10);
+                    postModalContent.classList.replace('scale-90', 'scale-100');
+
+                    // 3. สร้างรายการ Dropdown
                     let options = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>';
-                    
                     data.results.forEach(s => {
                         const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
                         const isMatch = (targetId && s.ScheduleID == targetId);
                         
-                        // หากต้องการให้เหลือเฉพาะวันนั้น ให้ใส่เงื่อนไข filter ตรงนี้
-                        // แต่แนะนำให้แสดงทั้งหมดและ Auto Select ตัวที่เลือกมา เพื่อให้ User เปลี่ยนใจได้
-                        options += `<option value="${s.ScheduleID}" ${isMatch ? 'selected' : ''}>
-                                        ${dateStr} - ${s.ShiftName}
+                        // ใส่เงื่อนไข disabled ให้เวรอื่นๆ ที่ติดธุรกรรมใน Dropdown ด้วยเพื่อป้องกันการเลือกผิด
+                        const isBusy = (s.TransactionStatus || s.SellingStatus === 'Open' || s.ExchangeStatus === 'pending');
+                        const disabledAttr = (isBusy && !isMatch) ? 'disabled' : '';
+                        const busyText = isBusy ? ' (ติดธุรกรรม)' : '';
+
+                        options += `<option value="${s.ScheduleID}" ${isMatch ? 'selected' : ''} ${disabledAttr}>
+                                        ${dateStr} - ${s.ShiftName}${busyText}
                                     </option>`;
                     });
-                    
                     select.innerHTML = options;
 
-                    // ถ้ามีการ Auto Select ให้ trigger event หรือแจ้งเตือนผู้ใช้เล็กน้อย
-                    if (selectedShift) {
-                        console.log("Auto-selected shift for date:", selectedShift.Nurse_Date);
-                    }
                 } else {
-                    select.innerHTML = '<option value="" disabled>ไม่พบข้อมูลเวร</option>';
+                    Swal.fire('ไม่พบเวร', 'คุณไม่มีเวรในอนาคตที่สามารถนำมาแลกได้', 'info');
                 }
             } catch (err) { 
-                select.innerHTML = '<option value="" disabled>เกิดข้อผิดพลาด</option>'; 
+                console.error(err);
+                select.innerHTML = '<option value="" disabled>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>'; 
             }
         }
+        
         function closePostModal() {
             const modal = document.getElementById('postModal');
             const content = document.getElementById('postModalContent');
