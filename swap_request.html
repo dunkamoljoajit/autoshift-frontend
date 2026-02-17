@@ -609,6 +609,64 @@ async function openEditPostModal(post) {
         Swal.fire('Error', 'ไม่สามารถเปิดหน้าแก้ไขได้ในขณะนี้', 'error');
     }
 }
+// --- ฟังก์ชันบันทึกการแก้ไขประกาศ ---
+async function handleUpdatePost(e) {
+    e.preventDefault(); // ป้องกันการ Refresh หน้าจอ
+    
+    const token = localStorage.getItem('token');
+    const postId = document.getElementById('edit-post-id').value;
+    const submitBtn = document.getElementById('btn-update-post');
+    
+    // เตรียมข้อมูลจาก Form
+    const body = {
+        scheduleId: document.getElementById('edit-post-schedule-id').value,
+        desiredDate: document.getElementById('edit-desired-date').value,
+        note: document.getElementById('edit-post-note').value,
+        userId: currentUser.UserID
+    };
+
+    if(!body.scheduleId) return Swal.fire('กรุณาเลือกเวร', '', 'warning');
+
+    // แสดงสถานะกำลังบันทึก
+    const originalContent = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+    submitBtn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/posts/update/${postId}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ',
+                text: 'แก้ไขประกาศเรียบร้อยแล้ว',
+                timer: 1500,
+                showConfirmButton: false
+            });
+            
+            window.closeEditPostModal(); // ปิด Modal
+            fetchMyActivePost(); // โหลดรายการประกาศใหม่
+        } else {
+            Swal.fire('ล้มเหลว', data.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+    } finally {
+        // คืนค่าปุ่มกลับมาเป็นปกติ
+        submitBtn.innerHTML = originalContent;
+        submitBtn.disabled = false;
+    }
+}
 
 async function deletePost(postId, scheduleId) {
     const confirm = await Swal.fire({ title: 'ลบประกาศนี้?', text: 'คุณจะยกเลิกการประกาศหาคนแลก', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
