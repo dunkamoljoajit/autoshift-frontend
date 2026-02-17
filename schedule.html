@@ -461,6 +461,7 @@
             const sheet = document.getElementById('detailSheet');
             const content = document.getElementById('sheetContent');
             
+            // สร้าง String วันที่ภาษาไทย
             const dateStr = `${day} ${THAI_MONTHS_FULL[currentDate.getMonth()]} ${currentDate.getFullYear()+543}`;
             
             let shiftsHtml = '';
@@ -473,7 +474,7 @@
                 const shiftStartDateTime = new Date(`${shift.Nurse_Date}T${shift.StartTime}`);
                 const isPast = new Date() > shiftStartDateTime;
 
-                // ปรับโครงสร้างภายในให้กว้างและใหญ่ขึ้น
+                // แก้ไขปุ่มกดให้ส่ง scheduleId และข้อมูลที่จำเป็น
                 shiftsHtml += `
                     <div class="shift-card-large flex items-center gap-6 bg-white border border-slate-100 shadow-md mb-4">
                         <div class="w-20 h-20 rounded-3xl ${color} flex items-center justify-center text-4xl shadow-inner">
@@ -608,26 +609,19 @@
         }
 
         // --- BRIDGE FUNCTION: เชื่อม Detail Sheet กับ Post Modal (แลกเวร) ---
-        function clickRequestTrade(scheduleId) {
+        async function clickRequestTrade(scheduleId) {
             closeDetailSheet(); 
-            setTimeout(() => {
-                openPostModal(scheduleId);
-            }, 350); 
-        }
-
-        // ================= 5. POST MODAL LOGIC (Updated to Redirect) =================
-        async function openPostModal() {
-            const token = localStorage.getItem('token');
-            document.getElementById('createPostForm').reset();
-            const select = document.getElementById('post-my-shift');
-            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดเวรที่ว่างของคุณ...</option>';
-            
+            openPostModal(scheduleId);
+            // เปิด Modal โพสต์
             document.getElementById('postModal').classList.remove('hidden');
             setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
             document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
+            
+            const token = localStorage.getItem('token');
+            const select = document.getElementById('post-my-shift');
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดข้อมูลเวร...</option>';
 
             try {
-                // ดึงเวรของฉัน (ส่งแค่ userId ปกติ) เพื่อให้ SQL ฝั่ง MyShifts กรองเวรที่ว่างมาให้
                 const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
                     headers: {'Authorization': `Bearer ${token}`} 
                 });
@@ -637,10 +631,48 @@
                     select.innerHTML = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>' + 
                         data.results.map(s => {
                             const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
-                            return `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
+                            // ถ้า ScheduleID ตรงกับที่กดมา ให้ใส่ selected
+                            const isSelected = s.ScheduleID == scheduleId ? 'selected' : '';
+                            return `<option value="${s.ScheduleID}" ${isSelected}>${dateStr} - ${s.ShiftName}</option>`;
                         }).join('');
+                }
+            } catch (err) { 
+                select.innerHTML = '<option value="" disabled>โหลดข้อมูลล้มเหลว</option>'; 
+            }
+        }
+
+        // ================= 5. POST MODAL LOGIC (Updated to Redirect) =================
+        async function openPostModal(targetId = null) {
+            const token = localStorage.getItem('token');
+            document.getElementById('createPostForm').reset();
+            const select = document.getElementById('post-my-shift');
+            
+            // แสดง Modal ทันที
+            document.getElementById('postModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
+            document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
+
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดเวรของคุณ...</option>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
+                    headers: {'Authorization': `Bearer ${token}`} 
+                });
+                const data = await res.json();
+
+                if (data.success && data.results.length > 0) {
+                    let options = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>';
+                    
+                    data.results.forEach(s => {
+                        const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
+                        // เช็คว่าถ้า ScheduleID ตรงกับ targetId ที่ส่งมา ให้ใส่ selected
+                        const isSelected = (targetId && s.ScheduleID == targetId) ? 'selected' : '';
+                        options += `<option value="${s.ScheduleID}" ${isSelected}>${dateStr} - ${s.ShiftName}</option>`;
+                    });
+                    
+                    select.innerHTML = options;
                 } else {
-                    select.innerHTML = '<option value="" disabled>คุณไม่มีเวรในอนาคตที่ว่างพอจะประกาศได้</option>';
+                    select.innerHTML = '<option value="" disabled>คุณไม่มีเวรในอนาคตที่สามารถประกาศได้</option>';
                 }
             } catch (err) { 
                 select.innerHTML = '<option value="" disabled>โหลดข้อมูลล้มเหลว</option>'; 
