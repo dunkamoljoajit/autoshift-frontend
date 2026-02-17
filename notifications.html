@@ -72,7 +72,7 @@
         const API_URL = (typeof API_BASE !== 'undefined') ? API_BASE : 'https://autoshift-backend.onrender.com';
         let currentUser = null;
         let allNotifications = [];
-        let isFetching = false; // ✅ ป้องกันโหลดซ้ำซ้อน
+        let isFetching = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             moment.locale('th'); 
@@ -85,16 +85,10 @@
                 await fetchAdminPendingActions(); 
             }
             
-            // ✅ โหลดข้อมูลครั้งแรก
             await loadNotifications();
-            
-            // ✅ Mark Read ครั้งเดียวตอนเปิดหน้า
             markAllAsRead(); 
-            
             initSocket();
         });
-
-    
 
         async function loadNotifications() {
             if (isFetching) return; 
@@ -113,7 +107,6 @@
                 if (data.success) {
                     allNotifications = data.notifications;
                     renderList(allNotifications);
-                    // ❌ ย้าย fetch(mark-all-read) ออกจากที่นี่ เพื่อตัดวงจร Loop
                 }
             } catch (err) { 
                 console.error("Load Notifications Error:", err);
@@ -126,7 +119,6 @@
         async function markAllAsRead() {
             const token = localStorage.getItem('token');
             try {
-                // ยิง API เพื่อแจ้งว่าอ่านหมดแล้ว
                 await fetch(`${API_URL}/api/notifications/mark-all-read`, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
@@ -155,18 +147,20 @@
                 let info = noti.info || '';
                 const title = noti.Title || 'แจ้งเตือน';
                 
-                // ✅ [ปรับปรุง] ค้นหาวันที่ในรูปแบบยาวภาษาอังกฤษและเปลี่ยนเป็นภาษาไทยที่อ่านง่าย
-                // ดักจับรูปแบบ Sat Feb 07 2026...
+                // 1. ✅ แปลงวันที่ภาษาอังกฤษยาวๆ เป็นไทย พ.ศ. (บวก 543 ปี)
                 const longDateRegex = /[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{2}\s\d{4}/g;
                 info = info.replace(longDateRegex, (match) => {
-                    return moment(match).format('D MMM YY'); // เช่น 7 ก.พ. 69
+                    return moment(match).add(543, 'years').format('D MMM YY'); 
                 });
                 
-                // ลบข้อความส่วนเกิน (00:00:00 GMT...) ออกเพื่อให้สั้นลง
                 info = info.replace(/00:00:00 GMT\+0700 \(Indochina Time\)/g, '');
 
                 const isSuccess = info.includes('สำเร็จ') || info.includes('เรียบร้อย') || info.includes('อนุมัติแล้ว');
-                const isActionable = (info.includes('รอ') || info.includes('ขอ')) && !isSuccess;
+                
+                // 2. ✅ เช็คสถานะรอหัวหน้าอนุมัติ
+                const isWaitingHeadNurse = info.includes('รอหัวหน้าอนุมัติ');
+                // 3. ✅ ถ้า "รอหัวหน้า" จะไม่แสดงปุ่มดำเนินการต่อ (isActionable = false)
+                const isActionable = (info.includes('รอ') || info.includes('ขอ')) && !isSuccess && !isWaitingHeadNurse;
                 
                 let theme = { icon: 'fa-bell', color: 'text-blue-500', bg: 'bg-blue-50' };
                 if (info.includes('ซื้อ') || info.includes('ขาย')) theme = { icon: 'fa-money-bill-wave', color: 'text-emerald-500', bg: 'bg-emerald-50' };
@@ -191,7 +185,12 @@
                             <p class="text-xs text-slate-600 mb-3 leading-relaxed">${info}</p>
                             <div class="flex items-center justify-between pt-2 border-t border-slate-100/50">
                                 <span class="text-[10px] text-slate-400 font-medium">โดย: ${noti.FirstName || 'ระบบ'}</span>
-                                ${isActionable ? `
+                                
+                                ${isWaitingHeadNurse ? `
+                                    <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+                                        <i class="fas fa-hourglass-half mr-1"></i> รอหัวหน้าพยาบาล
+                                    </span>
+                                ` : isActionable ? `
                                     <span class="text-[10px] font-bold text-white bg-indigo-600 px-3 py-1 rounded-full shadow-md animate-pulse">ดำเนินการต่อ <i class="fas fa-chevron-right ml-1"></i></span>
                                 ` : `<span class="text-[10px] font-bold ${isSuccess ? 'text-emerald-500' : 'text-slate-300'}">${isSuccess ? 'สำเร็จแล้ว' : 'อ่านแล้ว'}</span>`}
                             </div>
@@ -221,7 +220,7 @@
                             </div>
                             <div class="space-y-2 mb-4">
                                 <p class="text-sm text-slate-700"><b>${item.SellerName}</b> ขายเวรให้ <b>${item.BuyerName}</b></p>
-                                <p class="text-xs text-slate-500"><i class="far fa-calendar-alt mr-1"></i> วันที่เวร: ${moment(item.ShiftDate).format('ddddที่ D MMM YY')} (${item.ShiftName})</p>
+                                <p class="text-xs text-slate-500"><i class="far fa-calendar-alt mr-1"></i> วันที่เวร: ${moment(item.ShiftDate).add(543, 'years').format('ddddที่ D MMM YY')} (${item.ShiftName})</p>
                             </div>
                             <div id="admin-actions-${item.TransactionID}" class="flex gap-2">
                                 <button onclick="adminAction(${item.TransactionID}, 'reject')" class="flex-1 px-4 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-all">ปฏิเสธ</button>
@@ -266,8 +265,6 @@
                         card.style.opacity = '0.7';
                     }
                     Swal.fire({ icon: 'success', title: 'เรียบร้อย', timer: 1000, showConfirmButton: false });
-                    
-                    // โหลดข้อมูลใหม่หลังจากดำเนินการ (อาจมีการแจ้งเตือนใหม่เกิดขึ้น)
                     setTimeout(loadNotifications, 1000);
                 } else {
                     Swal.fire('Error', data.message, 'error');
@@ -276,18 +273,11 @@
         }
 
         function handleActionRedirect(info) {
-            // เช็กจากเนื้อหาข้อความ (info) แทนการเช็กแค่ Role อย่างเดียว
             if (info.includes('ซื้อ') || info.includes('ขาย')) {
                 window.location.href = 'trade_market.html';
             } 
             else if (info.includes('แลก') || info.includes('สลับ')) {
-                // ถ้าเป็นหัวหน้า (RoleID 1) อาจจะอยากให้ไปหน้าจัดการคำขอแลกเวรโดยเฉพาะ
-                // หรือถ้าใช้หน้ารวมก็เปลี่ยนเป็นชื่อไฟล์ที่ถูกต้องครับ
                 window.location.href = 'swap_request.html'; 
-            }
-            else {
-                // กรณีอื่นๆ เช่นแจ้งเตือนระบบ
-                console.log("Normal notification, no redirect needed.");
             }
         }
 
