@@ -195,10 +195,8 @@
             const targetTab = urlParams.get('tab');
 
             if (targetTab === 'my-posts') {
-                // ถ้ามีพารามิเตอร์ tab=my-posts ให้สลับไปแท็บ "ของฉัน" ทันที
                 switchTab('my-posts');
             } else {
-                // ถ้าไม่มีพารามิเตอร์ ให้โหลดข้อมูลหน้าตลาดตามปกติ
                 reloadData();
             }
             // -----------------------
