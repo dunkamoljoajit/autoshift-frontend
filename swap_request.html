@@ -535,7 +535,7 @@ async function handleSendRequest(e) {
     const myScheduleId = document.getElementById('my-offer-shift').value;
     if(!myScheduleId) return Swal.fire('กรุณาเลือกเวร', '', 'warning');
     try {
-        const res = await fetch(`${API_BASE}/api/swaps/request`, {
+        const res = await fetch(`${API_BASE}/api/swaps/send-request`, {
             method: 'POST',
             headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}`},
             body: JSON.stringify({ requesterId: currentUser.UserID, targetUserId: document.getElementById('modal-target-user-id').value, targetScheduleId: document.getElementById('modal-target-schedule-id').value, requesterScheduleId: myScheduleId, reason: document.getElementById('modal-reason').value })
