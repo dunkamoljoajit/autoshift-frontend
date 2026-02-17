@@ -666,9 +666,8 @@
             if (data.success && data.results.length > 0) {
                 badge.innerText = data.results.length;
                 container.innerHTML = data.results.map(item => {
-                    // ฟอร์แมตวันที่แบบไทย (เพิ่ม 543 ปี)
-                    const reqDate = moment(item.ReqDate).add(543, 'years').format('D ก.พ. YY');
-                    const resDate = moment(item.ResDate).add(543, 'years').format('D ก.พ. YY');
+                    const reqDate = moment(item.ReqDate).add(543, 'years').format('D MMM YY');
+                    const resDate = moment(item.ResDate).add(543, 'years').format('D MMM YY');
                     
                     return `
                     <div class="purple-bracket-card p-4 shadow-sm mb-3 bg-white border border-slate-100">
@@ -677,12 +676,13 @@
                                 <div class="text-[13px] font-bold text-slate-800 ml-2">${item.ReqName} ↔ ${item.ResName}</div>
                                 <div class="flex gap-2">
                                     <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" 
-                                        class="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition active:scale-90">
+                                        class="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition active:scale-90 shadow-sm">
                                         <i class="fas fa-times text-sm"></i>
                                     </button>
                                     <button onclick="window.respondApproval('${item.exchange_id}', 'approve')" 
-                                        class="w-9 h-9 flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-sm shadow-green-200 transition active:scale-95">
-                                        <i class="fas fa-check text-sm"></i>
+                                        style="background-color: #16a34a !important; color: white !important;"
+                                        class="w-9 h-9 flex items-center justify-center rounded-xl shadow-md transition active:scale-95">
+                                        <i class="fas fa-check text-sm" style="color: white !important;"></i>
                                     </button>
                                 </div>
                             </div>
