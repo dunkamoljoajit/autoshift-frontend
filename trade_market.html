@@ -577,9 +577,10 @@
         async function loadMySellableShifts() {
             const token = localStorage.getItem('token');
             const selector = document.getElementById('shiftSelector');
-            selector.innerHTML = '<option value="" disabled selected>กำลังโหลด...</option>';
+            selector.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบสถานะเวร...</option>';
 
             try {
+                // ดึงข้อมูลเวรของคุณ (ตรวจสอบว่า Backend ส่งสถานะธุรกรรมมาด้วย)
                 const res = await fetch(`${API_BASE}/api/my-sellable-shifts/${currentUserId}`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -590,21 +591,38 @@
 
                 if(data.success && data.shifts.length > 0) {
                     selector.innerHTML = '<option value="" disabled selected>-- เลือกเวรที่ต้องการขาย --</option>';
+                    
                     data.shifts.forEach(shift => {
+                        // ตรวจสอบเงื่อนไขธุรกรรม (อ้างอิงจากสถานะที่ Backend ส่งมา)
+                        const isSelling = shift.SellingStatus === 'Open';
+                        const isInTransaction = shift.TransactionStatus; // เช่น Pending_Seller, Pending_HeadNurse
+                        const isExchanging = shift.ExchangeStatus === 'pending';
+                        
+                        const isBusy = isSelling || isInTransaction || isExchanging;
+                        
+                        let statusNote = "";
+                        if (isSelling) statusNote = " (ลงขายไว้แล้ว)";
+                        else if (isInTransaction) statusNote = " (รออนุมัติซื้อขาย)";
+                        else if (isExchanging) statusNote = " (มีคำขอแลกค้างอยู่)";
+
                         const option = document.createElement('option');
-                        option.value = shift.id; 
-                        option.textContent = shift.label;
+                        option.value = shift.id;
+                        // ถ้าติดธุรกรรม ให้ใส่ disabled และเปลี่ยนสีข้อความ
+                        if (isBusy) {
+                            option.disabled = true;
+                            option.style.color = '#94a3b8'; // สีเทา
+                        }
+                        option.textContent = `${shift.label}${statusNote}`;
                         selector.appendChild(option);
                     });
                 } else {
-                    selector.innerHTML = '<option value="" disabled selected>ไม่มีเวรที่ขายได้ในขณะนี้</option>';
+                    selector.innerHTML = '<option value="" disabled selected>ไม่มีเวรที่สามารถประกาศขายได้</option>';
                 }
             } catch (err) {
-                selector.innerHTML = '<option value="" disabled selected>เกิดข้อผิดพลาด</option>';
+                selector.innerHTML = '<option value="" disabled selected>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
             }
         }
-
-        function submitPost(e) {
+        async function submitPost(e) {
             e.preventDefault();
             const token = localStorage.getItem('token');
             const formData = new FormData(e.target);
@@ -615,30 +633,58 @@
                 return;
             }
 
-            const payload = {
-                userId: currentUserId,
-                scheduleId: selectedScheduleId,
-                price: formData.get('condition'),
-                message: formData.get('message') || '' 
-            };
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+            btn.disabled = true;
 
-            fetch(`${API_BASE}/api/sell-shift`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
+            try {
+                // 1. ตรวจสอบสถานะล่าสุดจาก Server ก่อน (Real-time Validation)
+                const checkRes = await fetch(`${API_BASE}/api/swaps/check-status/${selectedScheduleId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statusData = await checkRes.json();
+
+                if (statusData.success && (statusData.isSelling || statusData.isPending || statusData.isInTransaction)) {
+                    let msg = "ไม่สามารถลงประกาศได้ เนื่องจากเวรนี้มีธุรกรรมค้างอยู่";
+                    if (statusData.isSelling) msg = "คุณได้ลงประกาศขายเวรนี้ไปแล้ว";
+                    if (statusData.isPending) msg = "เวรนี้กำลังอยู่ในขั้นตอนการขอแลกเปลี่ยน";
+
+                    Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: msg, confirmButtonColor: '#4f46e5' });
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 2. หากผ่านการตรวจสอบ ค่อยส่งไปบันทึก
+                const payload = {
+                    userId: currentUserId,
+                    scheduleId: selectedScheduleId,
+                    price: formData.get('condition'),
+                    message: formData.get('message') || '' 
+                };
+
+                const res = await fetch(`${API_BASE}/api/sell-shift`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
                 if(data.success) {
                     closePostModal();
-                    Swal.fire({ icon: 'success', title: 'ลงประกาศสำเร็จ', showConfirmButton: false, timer: 1500, customClass: { popup: 'rounded-2xl' } });
+                    Swal.fire({ icon: 'success', title: 'ลงประกาศสำเร็จ', showConfirmButton: false, timer: 1500 });
                     e.target.reset();
                     switchTab('my-posts'); 
                 } else {
                     Swal.fire('Error', data.message, 'error');
                 }
-            })
-            .catch(err => Swal.fire('Error', 'เชื่อมต่อ Server ไม่ได้', 'error'));
+            } catch (err) {
+                Swal.fire('Error', 'การเชื่อมต่อล้มเหลว', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         function deletePost(postId) {
