@@ -606,12 +606,32 @@ async function fetchPendingApprovals() {
     const container = document.getElementById('approval-list');
     const badge = document.getElementById('approval-badge');
     try {
-        const res = await fetch(`${API_BASE}/api/admin/swaps/pending`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const res = await fetch(`${API_BASE}/api/admin/swaps/pending`, { 
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
+        });
         const data = await res.json();
         if (data.success && data.results.length > 0) {
             badge.innerText = data.results.length;
-            container.innerHTML = data.results.map(item => `<div class="purple-bracket-card p-4 shadow-sm mb-3 bg-white border"><div class="flex justify-between items-center mb-2"><div class="text-[11px] font-bold">${item.ReqName} ↔ ${item.ResName}</div><div class="flex gap-2"><button onclick="window.respondApproval('${item.exchange_id}', 'reject')" class="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg"><i class="fas fa-times"></i></button><button onclick="window.respondApproval('${item.exchange_id}', 'approve')" class="w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg"><i class="fas fa-check"></i></button></div></div></div>`).join('');
-        } else { container.innerHTML = '<div class="text-center py-10 opacity-40 text-[10px]">ไม่มีรายการ</div>'; badge.innerText = "0"; }
+            container.innerHTML = data.results.map(item => `
+                <div class="purple-bracket-card p-4 shadow-sm mb-3 bg-white border animate-enter">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="text-[11px] font-bold">${item.ReqName} ↔ ${item.ResName}</div>
+                        <div class="flex gap-2">
+                            <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" 
+                                    class="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button onclick="window.respondApproval('${item.exchange_id}', 'approve')" 
+                                    class="w-8 h-8 flex items-center justify-center bg-green-500 text-white hover:bg-green-600 rounded-lg shadow-sm transition">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>`).join('');
+        } else { 
+            container.innerHTML = '<div class="text-center py-10 opacity-40 text-[10px]">ไม่มีรายการ</div>'; 
+            badge.innerText = "0"; 
+        }
     } catch (err) { console.error(err); }
 }
 
