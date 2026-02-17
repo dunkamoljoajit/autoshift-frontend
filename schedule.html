@@ -609,50 +609,23 @@
         }
 
         // --- BRIDGE FUNCTION: เชื่อม Detail Sheet กับ Post Modal (แลกเวร) ---
-        async function clickRequestTrade(scheduleId) {
+       // --- BRIDGE FUNCTION: เชื่อม Detail Sheet กับ Post Modal (แลกเวร) ---
+        function clickRequestTrade(scheduleId) {
             closeDetailSheet(); 
             openPostModal(scheduleId);
-            // เปิด Modal โพสต์
-            document.getElementById('postModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
-            document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
-            
-            const token = localStorage.getItem('token');
-            const select = document.getElementById('post-my-shift');
-            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดข้อมูลเวร...</option>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
-                    headers: {'Authorization': `Bearer ${token}`} 
-                });
-                const data = await res.json();
-
-                if (data.success && data.results.length > 0) {
-                    select.innerHTML = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>' + 
-                        data.results.map(s => {
-                            const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
-                            // ถ้า ScheduleID ตรงกับที่กดมา ให้ใส่ selected
-                            const isSelected = s.ScheduleID == scheduleId ? 'selected' : '';
-                            return `<option value="${s.ScheduleID}" ${isSelected}>${dateStr} - ${s.ShiftName}</option>`;
-                        }).join('');
-                }
-            } catch (err) { 
-                select.innerHTML = '<option value="" disabled>โหลดข้อมูลล้มเหลว</option>'; 
-            }
         }
 
-        // ================= 5. POST MODAL LOGIC (Updated to Redirect) =================
+        // ================= 5. POST MODAL LOGIC (แบบระบุเจาะจงเวร) =================
         async function openPostModal(targetId = null) {
             const token = localStorage.getItem('token');
-            document.getElementById('createPostForm').reset();
             const select = document.getElementById('post-my-shift');
             
-            // แสดง Modal ทันที
+            // รีเซ็ตฟอร์มและแสดง Modal
+            document.getElementById('createPostForm').reset();
             document.getElementById('postModal').classList.remove('hidden');
             setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
-            document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
 
-            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลดเวรของคุณ...</option>';
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังดึงข้อมูลเวร...</option>';
 
             try {
                 const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
@@ -661,21 +634,33 @@
                 const data = await res.json();
 
                 if (data.success && data.results.length > 0) {
+                    // ค้นหาเวรที่ตรงกับ targetId ที่กดมาจากตาราง
+                    const selectedShift = data.results.find(s => s.ScheduleID == targetId);
+                    
                     let options = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>';
                     
                     data.results.forEach(s => {
                         const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
-                        // เช็คว่าถ้า ScheduleID ตรงกับ targetId ที่ส่งมา ให้ใส่ selected
-                        const isSelected = (targetId && s.ScheduleID == targetId) ? 'selected' : '';
-                        options += `<option value="${s.ScheduleID}" ${isSelected}>${dateStr} - ${s.ShiftName}</option>`;
+                        const isMatch = (targetId && s.ScheduleID == targetId);
+                        
+                        // หากต้องการให้เหลือเฉพาะวันนั้น ให้ใส่เงื่อนไข filter ตรงนี้
+                        // แต่แนะนำให้แสดงทั้งหมดและ Auto Select ตัวที่เลือกมา เพื่อให้ User เปลี่ยนใจได้
+                        options += `<option value="${s.ScheduleID}" ${isMatch ? 'selected' : ''}>
+                                        ${dateStr} - ${s.ShiftName}
+                                    </option>`;
                     });
                     
                     select.innerHTML = options;
+
+                    // ถ้ามีการ Auto Select ให้ trigger event หรือแจ้งเตือนผู้ใช้เล็กน้อย
+                    if (selectedShift) {
+                        console.log("Auto-selected shift for date:", selectedShift.Nurse_Date);
+                    }
                 } else {
-                    select.innerHTML = '<option value="" disabled>คุณไม่มีเวรในอนาคตที่สามารถประกาศได้</option>';
+                    select.innerHTML = '<option value="" disabled>ไม่พบข้อมูลเวร</option>';
                 }
             } catch (err) { 
-                select.innerHTML = '<option value="" disabled>โหลดข้อมูลล้มเหลว</option>'; 
+                select.innerHTML = '<option value="" disabled>เกิดข้อผิดพลาด</option>'; 
             }
         }
         function closePostModal() {
