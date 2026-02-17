@@ -405,92 +405,79 @@
         }
     }
 
-    async function handleSendRequest(e) {
+    async function handleSearch(e) {
         e.preventDefault();
-        const myScheduleId = document.getElementById('my-offer-shift').value;
-        if(!myScheduleId) return Swal.fire('กรุณาเลือกเวรของคุณ', '', 'warning');
+        const date = document.getElementById('searchDate').value; 
+        const shiftId = document.getElementById('searchShift').value;
+        const container = document.getElementById('searchResults');
         const token = localStorage.getItem('token');
-        try {
-            const res = await fetch(`${API_BASE}/api/swaps/send-request`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${token}`},
-                body: JSON.stringify({
-                    requesterId: currentUser.UserID,
-                    targetScheduleId: document.getElementById('modal-target-schedule-id').value,
-                    requesterScheduleId: myScheduleId,
-                    reason: document.getElementById('modal-reason').value
-                })
-            });
-            const data = await res.json();
-            if(data.success) { window.closeRequestModal(); Swal.fire('ส่งคำขอสำเร็จ!', 'รอเพื่อนร่วมงานพยาบาลและหัวหน้ายืนยัน', 'success'); fetchIncomingRequests(); }
-            else { Swal.fire('ล้มเหลว', data.message, 'error'); }
-        } catch(err) { Swal.fire('Error', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error'); }
-    }
-
-    async function openPostModal() {
-        const token = localStorage.getItem('token');
-        document.getElementById('createPostForm').reset();
-        const select = document.getElementById('post-my-shift');
         
-        // แสดง UI โหลดข้อมูล
-        select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบเวรที่ว่างของคุณ...</option>';
-        document.getElementById('postModal').classList.remove('hidden');
-        setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
-        document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
+        if(!date) return Swal.fire({ icon: 'warning', title: 'กรุณาเลือกวันที่' });
+
+        // แสดงสถานะการโหลด
+        document.getElementById('search-btn-text').classList.add('hidden');
+        document.getElementById('search-loading').classList.remove('hidden');
+        container.innerHTML = `
+            <div class="col-span-full py-12 text-center animate-pulse">
+                <div class="inline-block w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                <div class="text-slate-400 font-medium">กำลังค้นหาพยาบาลที่เข้าเวร...</div>
+            </div>`;
 
         try {
-            // ดึงข้อมูลเวรพร้อมสถานะธุรกรรม
-            const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
-                headers: {'Authorization': `Bearer ${token}`} 
+            // ค้นหาเพื่อนที่เข้าเวรในวันนั้นจาก Backend (ซึ่งกรองเวรกะเดียวกันกับเราออกให้แล้ว)
+            const response = await fetch(`${API_BASE}/api/swaps/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ date, shiftId, requesterId: currentUser.UserID })
             });
-            const data = await res.json();
 
-            if (data.success && data.results.length > 0) {
-                let optionsHtml = '<option value="">-- เลือกเวรที่ต้องการปล่อย --</option>';
-                
-                data.results.forEach(s => {
-                    const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
-                    
-                    // ตรวจสอบเงื่อนไขธุรกรรม
-                    const isSelling = s.SellingStatus === 'Open';
-                    const isInTransaction = s.TransactionStatus;
-                    const isExchanging = s.ExchangeStatus === 'pending';
-                    
-                    const isBusy = isSelling || isInTransaction || isExchanging;
-                    
-                    // กำหนดสถานะและข้อความแจ้งเตือนใน Dropdown
-                    let statusText = "";
-                    if (isSelling) statusText = " (กำลังประกาศขาย)";
-                    else if (isInTransaction) statusText = " (รออนุมัติซื้อขาย)";
-                    else if (isExchanging) statusText = " (มีคำขอแลกค้างอยู่)";
+            const data = await response.json();
+            container.innerHTML = '';
 
-                    // ถ้าติดธุรกรรมให้เลือกไม่ได้ (disabled)
-                    optionsHtml += `
-                        <option value="${s.ScheduleID}" ${isBusy ? 'disabled' : ''} class="${isBusy ? 'text-slate-400' : ''}">
-                            ${dateStr} - ${s.ShiftName}${statusText}
-                        </option>`;
-                });
-                
-                select.innerHTML = optionsHtml;
+            if(data.success && data.results.length > 0) {
+                document.getElementById('result-count').innerText = `พบ ${data.results.length} คนที่มีเวรในวันดังกล่าว`;
+                container.innerHTML = data.results.map((item, i) => {
+                    let profileSrc = item.ProfileImage && item.ProfileImage.startsWith('http') ? item.ProfileImage : 'https://placehold.co/100';
+                    return `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col items-start gap-3 hover:shadow-md transition animate-enter relative group" style="animation-delay:${i*0.05}s">
+                        <div class="flex items-center gap-3 w-full border-b border-slate-50 pb-3">
+                            <img src="${profileSrc}" class="w-12 h-12 rounded-full border-2 border-slate-50 shadow-sm object-cover">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${item.FirstName} ${item.LastName}</h4>
+                                <div class="text-xs text-slate-400">${item.ShiftName}</div>
+                            </div>
+                        </div>
+                        <button onclick="window.openRequestModal('${item.UserID}', '${item.FirstName}', '${item.ScheduleID}')" 
+                                class="w-full mt-1 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                            <span>เสนอแลกเวรกับคนนี้</span> <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </div>`;
+                }).join('');
             } else {
-                select.innerHTML = '<option value="" disabled>คุณไม่มีเวรที่สามารถนำมาแลกได้</option>';
+                document.getElementById('result-count').innerText = "ไม่พบข้อมูล";
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-12 bg-white/40 rounded-[2rem] border-2 border-dashed border-slate-200">
+                        <p class="text-slate-500 font-medium">ไม่พบเพื่อนที่มีเวรที่คุณต้องการแลกในระบบ</p>
+                    </div>`;
             }
         } catch (err) { 
-            select.innerHTML = '<option value="" disabled>❌ โหลดข้อมูลล้มเหลว</option>'; 
+            container.innerHTML = `<div class="col-span-full text-center text-red-400 py-10">การเชื่อมต่อผิดพลาด</div>`; 
+        } finally {
+            document.getElementById('search-btn-text').classList.remove('hidden');
+            document.getElementById('search-loading').classList.add('hidden');
         }
     }
 
     async function openRequestModal(targetId, targetName, scheduleId) {
-        // 1. ตั้งค่าพื้นฐานและแสดง UI Modal
         document.getElementById('modal-target-name').innerText = targetName;
         document.getElementById('modal-target-user-id').value = targetId;
-        document.getElementById('modal-target-schedule-id').value = scheduleId; // ID เวรของเพื่อนที่เราอยากได้
+        document.getElementById('modal-target-schedule-id').value = scheduleId; 
         document.getElementById('modal-reason').value = '';
         
         const select = document.getElementById('my-offer-shift');
         select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบเวรที่ปลอดภัยสำหรับคุณ...</option>';
         
-        // เปิด Modal
+        // แสดง Modal
         const modal = document.getElementById('requestModal');
         modal.classList.remove('hidden');
         setTimeout(() => modal.classList.remove('opacity-0'), 10);
@@ -499,9 +486,7 @@
         try {
             const token = localStorage.getItem('token');
             
-            /** * 2. เรียก API พร้อมส่ง targetScheduleId ไปด้วย 
-            * เพื่อให้ Backend ใช้ฟังก์ชัน checkFatigueStatus กรองเวรที่แลกแล้วไม่ผิดกฎ 
-            */
+            // เรียก API โดยพ่วง ID เวรของเพื่อน เพื่อให้ Backend รัน checkFatigueStatus กรองผลลัพธ์
             const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`, { 
                 headers: { 'Authorization': `Bearer ${token}` } 
             });
@@ -509,41 +494,21 @@
 
             if (data.success) {
                 if (data.results.length > 0) {
-                    // 3. แสดงลิสต์เวรที่ผ่านการกรอง (Safe Shifts)
-                    let optionsHtml = '<option value="">-- เลือกเวรของคุณที่จะนำไปแลก --</option>';
-                    
+                    let optionsHtml = '<option value="">-- เลือกเวรของคุณที่ปลอดภัยต่อตารางวอร์ด --</option>';
                     data.results.forEach(s => {
-                        // แปลงวันที่เป็นแบบไทย (พ.ศ.)
                         const dateStr = moment(s.Nurse_Date).add(543, 'years').format('D MMM YY');
                         optionsHtml += `<option value="${s.ScheduleID}">${dateStr} - ${s.ShiftName}</option>`;
                     });
-                    
                     select.innerHTML = optionsHtml;
                 } else {
-                    // กรณีไม่มีเวรที่ผ่านกฎ (เช่น แลกไปแล้วจะควงเวร หรือหัวหน้าจะแลกเวรดึก)
-                    let msg = data.message || "ไม่มีเวรของคุณที่สามารถแลกกับเวรนี้ได้ตามกฎความปลอดภัย";
+                    // กรณีไม่มีเวรที่ผ่านกฎ (เช่น หัวหน้าพยาบาลจะแลกเวรบ่าย/ดึก หรือจะควงเวรดึก-เช้า)
+                    let msg = data.message || "ไม่มีเวรของคุณที่สามารถแลกกับเวรนี้ได้โดยไม่ผิดกฎความปลอดภัย";
                     select.innerHTML = `<option value="" disabled>${msg}</option>`;
-                    
-                    // แจ้งเตือนผู้ใช้เล็กน้อย
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'ไม่สามารถแลกได้',
-                        text: msg,
-                        confirmButtonText: 'รับทราบ',
-                        confirmButtonColor: '#4f46e5'
-                    });
+                    Swal.fire({ icon: 'info', title: 'แลกไม่ได้', text: msg, confirmButtonColor: '#4f46e5' });
                 }
-            } else {
-                throw new Error(data.message);
             }
         } catch (err) {
-            console.error("Error fetching safe shifts:", err);
-            select.innerHTML = '<option value="" disabled>❌ ไม่สามารถโหลดข้อมูลได้</option>';
-            Swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: 'ไม่สามารถตรวจสอบความปลอดภัยของตารางเวรได้'
-            });
+            select.innerHTML = '<option value="" disabled>❌ ไม่สามารถโหลดข้อมูลความปลอดภัยได้</option>';
         }
     }
 
