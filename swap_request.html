@@ -751,11 +751,12 @@
                                     title="ปฏิเสธ">
                                     <i class="fas fa-times text-lg"></i>
                                 </button>
-                                
+                                // แก้ไขเฉพาะปุ่มยอมรับ (Approve) ใน fetchIncomingRequests
                                 <button onclick="window.respondSwap('${req.SwapID}', 'approve')" 
-                                    class="w-10 h-10 flex items-center justify-center bg-green-600 text-white rounded-xl shadow-md shadow-green-100 hover:bg-green-700 transition active:scale-90"
+                                    style="background-color: #16a34a !important; color: white !important;"
+                                    class="w-10 h-10 flex items-center justify-center rounded-xl shadow-md transition active:scale-90"
                                     title="ยอมรับ">
-                                    <i class="fas fa-check text-lg"></i>
+                                    <i class="fas fa-check text-lg" style="color: white !important;"></i>
                                 </button>
                             </div>
                         </div>
