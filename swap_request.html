@@ -336,12 +336,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     fetchIncomingRequests();
     fetchMyActivePost(); 
-
+    
     // Bind Form Listeners
     document.getElementById('searchForm').addEventListener('submit', handleSearch);
     document.getElementById('sendRequestForm').addEventListener('submit', handleSendRequest);
     document.getElementById('createPostForm').addEventListener('submit', handleCreatePost);
+    document.getElementById('updatePostForm').addEventListener('submit', handleUpdatePost);
 });
+
 
 // --- 2. ฟังก์ชันค้นหา (ยืดหยุ่นกะเวลา) ---
 
