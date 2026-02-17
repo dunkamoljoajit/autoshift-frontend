@@ -619,14 +619,22 @@ async function fetchPendingApprovals() {
                             <div class="text-[12px] font-bold text-slate-800">
                                 ${item.ReqName} ↔ ${item.ResName}
                             </div>
+                            
                             <div class="text-[10px] text-slate-500 flex flex-col gap-0.5">
-                                <p><b>จาก:</b> ${moment(item.ReqDate).add(543, 'years').format('D MMM YY')} (${item.ReqShift})</p>
-                                <p><b>แลกกับ:</b> ${moment(item.ResDate).add(543, 'years').format('D MMM YY')} (${item.ResShift})</p>
+                                <div class="flex items-center gap-1">
+                                    <span class="w-12 font-bold text-indigo-600">ของ ${item.ReqName}:</span>
+                                    <span>${moment(item.ReqDate).add(543, 'years').format('D MMM YY')} (${item.ReqShift})</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="w-12 font-bold text-purple-600">ของ ${item.ResName}:</span>
+                                    <span>${moment(item.ResDate).add(543, 'years').format('D MMM YY')} (${item.ResShift})</span>
+                                </div>
                             </div>
-                            ${item.reason ? `<p class="text-[9px] text-indigo-500 mt-1 italic">เหตุผล: ${item.reason}</p>` : ''}
+
+                            ${item.reason ? `<p class="text-[9px] text-slate-400 mt-1 italic">เหตุผล: ${item.reason}</p>` : ''}
                         </div>
                         
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 pt-1">
                             <button onclick="window.respondApproval('${item.exchange_id}', 'reject')" 
                                     class="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition">
                                 <i class="fas fa-times"></i>
