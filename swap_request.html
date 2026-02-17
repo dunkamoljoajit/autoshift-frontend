@@ -622,11 +622,11 @@ async function fetchPendingApprovals() {
                             
                             <div class="text-[10px] text-slate-500 flex flex-col gap-0.5">
                                 <div class="flex items-center gap-1">
-                                    <span class="w-12 font-bold text-indigo-600">ของ ${item.ReqName}:</span>
+                                    <span class="w-12 font-bold text-indigo-600">เวรของ ${item.ReqName}:</span>
                                     <span>${moment(item.ReqDate).add(543, 'years').format('D MMM YY')} (${item.ReqShift})</span>
                                 </div>
                                 <div class="flex items-center gap-1">
-                                    <span class="w-12 font-bold text-purple-600">ของ ${item.ResName}:</span>
+                                    <span class="w-12 font-bold text-purple-600">เวรของ ${item.ResName}:</span>
                                     <span>${moment(item.ResDate).add(543, 'years').format('D MMM YY')} (${item.ResShift})</span>
                                 </div>
                             </div>
