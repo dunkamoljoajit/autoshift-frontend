@@ -307,6 +307,10 @@ window.deletePost = deletePost;
 window.respondSwap = respondSwap;
 window.respondApproval = respondApproval;
 window.fetchPendingApprovals = fetchPendingApprovals;
+// ผูกฟังก์ชันเพิ่มเติมที่ยังขาดอยู่
+window.openEditPostModal = openEditPostModal;
+window.closeEditPostModal = closeEditPostModal;
+window.clearEditDate = clearEditDate;
 
 document.addEventListener('DOMContentLoaded', () => {
     const userStr = localStorage.getItem('user');
@@ -886,6 +890,14 @@ async function respondApproval(id, act) {
         }
     } catch(e) {
         Swal.fire('Error', 'การเชื่อมต่อผิดพลาด', 'error');
+    }
+}
+function closeEditPostModal() { 
+    const modal = document.getElementById('editPostModal');
+    if (modal) {
+        modal.classList.add('opacity-0'); 
+        document.getElementById('editPostModalContent').classList.replace('scale-100', 'scale-90');
+        setTimeout(() => modal.classList.add('hidden'), 300); 
     }
 }
 </script>
