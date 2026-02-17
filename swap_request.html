@@ -348,6 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sendRequestForm').addEventListener('submit', handleSendRequest);
     document.getElementById('createPostForm').addEventListener('submit', handleCreatePost);
     document.getElementById('editPostForm').addEventListener('submit', handleUpdatePost);
+    // ล้างสถานะปุ่มค้นหาให้ปกติเมื่อโหลดหน้าเว็บ
+    document.getElementById('search-loading')?.classList.add('hidden');
+    document.getElementById('search-btn-text')?.classList.remove('hidden');
 });
 
 
