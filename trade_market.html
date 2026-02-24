@@ -48,6 +48,12 @@
         /* Card Hover */
         .hover-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1); }
         .transition-all-300 { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @media (min-width: 1024px) {
+            #marketContainer {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+                gap: 1.5rem !important;
+    }
+}
     </style>
 </head>
 
@@ -64,7 +70,7 @@
             </div>
             
             <div class="flex items-center gap-3 w-full md:w-auto">
-                <button onclick="reloadData()" class="w-10 h-10 md:w-auto md:px-4 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 shadow-sm flex items-center justify-center transition-all">
+                <button onclick="reloadData(this)" class="w-10 h-10 md:w-auto md:px-4 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 shadow-sm flex items-center justify-center transition-all">
                     <i class="fas fa-sync-alt"></i> <span class="hidden md:inline ml-2 text-sm font-medium">รีเฟรช</span>
                 </button>
                 <button onclick="openPostModal()" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-sm font-medium">
@@ -212,10 +218,33 @@
             return date.fromNow();
         }
 
-        function reloadData() {
-            fetchMarketData();
-            fetchMyStatus();
-            checkIncomingRequests();
+        async function reloadData(btn) {
+            // 1. เพิ่ม Animation หมุนที่ปุ่ม (ถ้ามีการส่งตัวแปร btn มา)
+            const icon = btn ? btn.querySelector('i') : document.querySelector('button[onclick*="reloadData"] i');
+            if (icon) icon.classList.add('fa-spin');
+
+            // 2. ดึงข้อมูลส่วนกลางที่ต้องอัปเดตเสมอไม่ว่าจะอยู่แท็บไหน
+            const statusPromise = fetchMyStatus();
+            const incomingPromise = checkIncomingRequests();
+
+            // 3. เช็คแท็บปัจจุบันเพื่อโหลดข้อมูลให้ถูกจุด
+            try {
+                if (currentTab === 'market') {
+                    // ดึงข้อมูลตลาดกลาง (ใช้ค่า 'all' เป็นพื้นฐาน)
+                    await fetchMarketData('all');
+                } else {
+                    // ดึงข้อมูลประกาศของฉัน
+                    await fetchMyActivePosts();
+                }
+                await Promise.all([statusPromise, incomingPromise]);
+            } catch (err) {
+                console.error("Refresh Error:", err);
+            } finally {
+                // 4. หยุดการหมุนของไอคอน (หน่วงเวลาเล็กน้อยเพื่อให้ดูเหมือนโหลดจริง)
+                setTimeout(() => {
+                    if (icon) icon.classList.remove('fa-spin');
+                }, 500);
+            }
         }
 
         function switchTab(tab) {
@@ -238,6 +267,9 @@
                 filterSection.classList.add('hidden');
                 fetchMyActivePosts();
             }
+            // ✅ ดึงข้อมูลแจ้งเตือนใหม่ทุกครั้งที่สลับแท็บ
+            fetchMyStatus();
+            checkIncomingRequests();
         }
 
         async function fetchMarketData(filterType = 'all') {
@@ -546,7 +578,7 @@
                     .then(data => {
                         if (data.success) {
                             Swal.fire({ icon: 'success', title: 'ดำเนินการสำเร็จ', showConfirmButton: false, timer: 1500, customClass: { popup: 'rounded-2xl' } });
-                            reloadData();
+                            reloadData(this);
                         } else {
                             Swal.fire('Error', 'เกิดข้อผิดพลาด', 'error');
                         }
@@ -858,7 +890,7 @@
                     .then(data => {
                         if (data.success) {
                             Swal.fire({ icon: 'success', title: 'ส่งคำขอสำเร็จ', text: 'กรุณารอเจ้าของเวรกดยืนยัน', showConfirmButton: false, timer: 2000, customClass: { popup: 'rounded-2xl' } });
-                            reloadData();
+                            reloadData(this);
                         } else {
                             Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถทำรายการได้', 'error');
                         }
@@ -904,7 +936,7 @@
                     const data = await res.json();
                     if (data.success) {
                         Swal.fire('สำเร็จ', data.message, 'success');
-                        reloadData(); // เรียกโหลดข้อมูลใหม่ทั้งหมด
+                        reloadData(this); // เรียกโหลดข้อมูลใหม่ทั้งหมด
                     }
                 } catch (err) {
                     Swal.fire('Error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
