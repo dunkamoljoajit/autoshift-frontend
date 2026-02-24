@@ -197,13 +197,13 @@
                 <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
 
                 <div class="grid grid-cols-7 mb-6 text-center">
-                    <div class="text-xs font-bold text-rose-500">อา</div>
                     <div class="text-xs font-bold text-slate-400">จ</div>
                     <div class="text-xs font-bold text-slate-400">อ</div>
                     <div class="text-xs font-bold text-slate-400">พ</div>
                     <div class="text-xs font-bold text-slate-400">พฤ</div>
                     <div class="text-xs font-bold text-slate-400">ศ</div>
                     <div class="text-xs font-bold text-indigo-500">ส</div>
+                    <div class="text-xs font-bold text-rose-500">อา</div>
                 </div>
 
                 <div id="calendarGrid" class="grid grid-cols-7 gap-y-2 gap-x-1 md:gap-4 relative z-10"></div>
@@ -406,45 +406,73 @@
             const grid = document.getElementById('calendarGrid');
             grid.innerHTML = '';
 
+            // ดึงวันแรกของเดือน (0 = อาทิตย์, 1 = จันทร์, ..., 6 = เสาร์)
             const firstDay = new Date(year, month - 1, 1).getDay();
             const daysInMonth = new Date(year, month, 0).getDate();
             const today = new Date();
 
-            for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+            /**
+            * 🔥 ปรับ Logic สำหรับการเริ่มวันจันทร์:
+            * หาก firstDay คือ 0 (อาทิตย์) ให้เปลี่ยนเป็น index 6
+            * หากเป็นวันอื่นๆ (1-6) ให้ลบออก 1 เพื่อให้ จันทร์=0, อังคาร=1 ... เสาร์=5
+            */
+            const startingDay = (firstDay === 0) ? 6 : firstDay - 1;
 
-            for(let day=1; day<=daysInMonth; day++) {
-                const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                const dayShifts = shiftsData.filter(s => s.Nurse_Date.startsWith(dateStr)); 
+            // 1. วาดช่องว่างก่อนเริ่มวันที่ 1 ของเดือน
+            for (let i = 0; i < startingDay; i++) {
+                grid.innerHTML += `<div></div>`;
+            }
+
+            // 2. วาดช่องวันที่ในแต่ละวัน
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // กรองข้อมูลเวรจาก shiftsData ที่ตรงกับวันที่นี้
+                const dayShifts = shiftsData.filter(s => s.Nurse_Date.startsWith(dateStr));
                 const hasShift = dayShifts.length > 0;
-                
-                let isToday = (day === today.getDate() && month === (today.getMonth()+1) && year === today.getFullYear());
-                let cellClass = `day-cell relative flex flex-col items-center cursor-pointer select-none animate-pop`;
-                
-                if(isToday) cellClass += ' today';
-                else cellClass += hasShift ? ' has-shift' : ' text-slate-400';
 
-                // --- เปลี่ยนจาก Dot เป็น Bar ตรงนี้ ---
-                let barsHtml = '<div class="flex flex-col w-full items-center gap-0.5">'; 
-                if(hasShift) {
+                // ตรวจสอบว่าเป็นวันปัจจุบันหรือไม่
+                let isToday = (day === today.getDate() && 
+                            month === (today.getMonth() + 1) && 
+                            year === today.getFullYear());
+                
+                let cellClass = `day-cell relative flex flex-col items-center cursor-pointer select-none animate-pop`;
+
+                if (isToday) {
+                    cellClass += ' today';
+                } else {
+                    cellClass += hasShift ? ' has-shift' : ' text-slate-400';
+                }
+
+                // --- สร้าง HTML สำหรับแถบสี (Shift Bars) ---
+                let barsHtml = '<div class="flex flex-col w-full items-center gap-0.5">';
+                if (hasShift) {
                     dayShifts.forEach(shift => {
                         let barColorClass = 'bg-slate-400';
-                        if(shift.ShiftName.includes('เช้า')) barColorClass = 'bar-morning';
-                        else if(shift.ShiftName.includes('บ่าย')) barColorClass = 'bar-afternoon';
-                        else if(shift.ShiftName.includes('ดึก')) barColorClass = 'bar-night';
-                        
-                        // แสดงชื่อเวร เช่น "เช้า", "บ่าย", "ดึก"
+                        if (shift.ShiftName.includes('เช้า')) barColorClass = 'bar-morning';
+                        else if (shift.ShiftName.includes('บ่าย')) barColorClass = 'bar-afternoon';
+                        else if (shift.ShiftName.includes('ดึก')) barColorClass = 'bar-night';
+
                         barsHtml += `<div class="shift-bar ${barColorClass}">${shift.ShiftName}</div>`;
                     });
                 }
                 barsHtml += '</div>';
 
+                // สร้าง Element สำหรับแต่ละช่องวันที่
                 const delay = (day * 0.02).toFixed(2);
                 const cell = document.createElement('div');
                 cell.className = cellClass;
                 cell.style.animationDelay = `${delay}s`;
-                cell.innerHTML = `<span class="date-number font-bold z-10">${day}</span>${barsHtml}`;
+                cell.innerHTML = `
+                    <span class="date-number font-bold z-10">${day}</span>
+                    ${barsHtml}
+                `;
 
-                if(hasShift) cell.onclick = () => openDetailSheet(dayShifts, day);
+                // เมื่อคลิกที่วันที่มีเวร ให้เปิด Detail Sheet
+                if (hasShift) {
+                    cell.onclick = () => openDetailSheet(dayShifts, day);
+                }
+
                 grid.appendChild(cell);
             }
         }
