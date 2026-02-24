@@ -437,7 +437,7 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         const token = localStorage.getItem('token');
         const res = await apiRequest(`${API_BASE}/api/change-password`, {
             method: 'POST',
-            body: JSON.stringify({ oldPassword: oldPassInput.value, newPassword: newPassInput.value })
+            body: JSON.stringify({ oldPassword: oldPassInput.value, newPassword: newPassInput.value,currentSocketId: window.socket ? window.socket.id : null })
         });
         const data = await res.json();
         if (data.success) {

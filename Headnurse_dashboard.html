@@ -673,38 +673,35 @@
 
         try {
             const token = localStorage.getItem('token');
+            
+            // --- ✅ เพิ่ม currentSocketId เข้าไปใน Payload ก่อนส่ง API ---
+            const finalPayload = {
+                ...payload,
+                currentSocketId: window.socket ? window.socket.id : null
+            };
+
             const res = await apiRequest(`${API_URL}/api/change-password`, {
                 method: 'POST',
-                body: JSON.stringify(payload)
+                body: JSON.stringify(finalPayload) // ส่งก้อนที่เพิ่ม socketId แล้ว
             });
 
             const data = await res.json();
             if (data.success) {
-                // ✅ ถ้า Backend ส่ง Token ใหม่มาให้ (เพราะรหัสเปลี่ยนแล้ว กุญแจเดิมจะใช้ไม่ได้ในครั้งหน้า)
+                // อัปเดต Token ใหม่ถ้ามีการส่งกลับมา
                 if (data.token) {
                     localStorage.setItem('token', data.token);
                 }
                 
-                Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
-            }
-
-            if (data.success) {
-                // ✅ 2. แจ้งเตือนเมื่อสำเร็จ
                 await Swal.fire({
                     icon: 'success',
                     title: 'เปลี่ยนรหัสผ่านสำเร็จ!',
-                    text: 'รหัสผ่านของคุณถูกอัปเดตเรียบร้อยแล้ว',
+                    text: 'รหัสผ่านของคุณถูกอัปเดตเรียบร้อยแล้ว (เครื่องอื่นจะถูกออกจากระบบ)',
                     confirmButtonColor: '#191970',
-                    confirmButtonText: 'ตกลง',
-                    timer: 2500, // ปิดเองใน 2.5 วินาที
+                    timer: 2500,
                     timerProgressBar: true
                 });
 
-                // (ทางเลือก) แนะนำให้สั่ง Logout หรือ Redirect ไปหน้า Login ใหม่เพื่อความปลอดภัย
-                // window.location.href = 'login.html'; 
-
             } else {
-                // ❌ 3. แจ้งเตือนเมื่อข้อมูลไม่ถูกต้อง (เช่น รหัสเดิมผิด)
                 throw new Error(data.message || 'รหัสผ่านเดิมไม่ถูกต้อง กรุณาลองใหม่');
             }
         } catch (err) {
