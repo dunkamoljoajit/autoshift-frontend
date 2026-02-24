@@ -304,7 +304,7 @@ function showSmartToast(message) {
     setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 500); }, 5000);
 }
 
-function initSocket() {
+function initSocketNotificationSystem() {
     if (window.socket && window.socket.connected) return;
 
     const user = getUser();
