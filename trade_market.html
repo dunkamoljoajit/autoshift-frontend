@@ -55,7 +55,7 @@
 
     <app-header class="sticky top-0 z-30 shadow-sm bg-white/90 backdrop-blur-md border-b border-slate-200"></app-header>
     
-    <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 pb-28 md:pb-10 max-w-7xl mx-auto w-full">
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full" style="padding-bottom: 120px !important;">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 animate-enter">
             <div>
@@ -80,7 +80,7 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
                     </span>
-                    มีคนขอซื้อเวรของคุณ
+                    มีรายการรอการตอบรับ
                 </h2>
                 <div id="incomingList" class="space-y-3"></div>
             </div>
@@ -98,7 +98,6 @@
         </div>
 
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sticky top-0 z-20 md:static py-2 md:py-0 animate-enter" style="animation-delay: 0.2s;">
-            
             <div class="bg-slate-200/80 p-1 rounded-xl flex w-full md:w-auto backdrop-blur-md">
                 <button onclick="switchTab('market')" id="tab-market" class="flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all bg-white text-indigo-600 shadow-sm">
                     <i class="fas fa-store mr-2"></i> ตลาดกลาง
@@ -118,12 +117,13 @@
             </div>
         </div>
 
-        <div id="marketContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20 animate-enter" style="animation-delay: 0.25s;">
-            </div>
+        <div id="marketContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20 animate-enter" style="animation-delay: 0.25s;"></div>
 
     </main>
 
-    <app-navbar class="sticky top-0 z-30 shadow-sm bg-white/90 backdrop-blur-md border-b border-slate-200"></app-navbar>
+    <app-navbar></app-navbar>
+
+</body>
 
     <div id="postModalOverlay" class="fixed inset-0 bg-slate-900/60 z-[60] hidden backdrop-blur-sm transition-opacity opacity-0 duration-300"></div>
     <div id="postModal" class="fixed bottom-0 left-0 right-0 md:top-1/2 md:left-1/2 md:bottom-auto md:w-[480px] md:-translate-x-1/2 md:-translate-y-1/2 bg-white z-[70] rounded-t-[2rem] md:rounded-2xl shadow-2xl transform translate-y-full md:translate-y-[20%] transition-transform duration-300 ease-out flex flex-col max-h-[90vh] hidden">
