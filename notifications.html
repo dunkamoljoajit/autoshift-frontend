@@ -12,17 +12,17 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/th.min.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="components.js"></script> 
 
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
         .card-enter { animation: slideIn 0.3s ease-out forwards; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
         .clickable-card { cursor: pointer; transition: all 0.2s ease; position: relative; border-left-width: 4px !important; }
-        .clickable-card:hover { transform: translateY(-2px); background-color: #f1f5f9; border-color: #6366f1; shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .clickable-card:hover { transform: translateY(-2px); background-color: #f1f5f9; border-color: #6366f1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .clickable-card:active { transform: scale(0.98); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="pb-24">
@@ -30,10 +30,9 @@
     <app-header class="fixed top-0 left-0 w-full z-50 shadow-sm bg-white"></app-header>
 
     <main class="pt-32 md:pt-44 max-w-2xl mx-auto px-4 py-6">
-        
         <div class="flex items-center justify-between mb-8">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">การแจ้งเตือนการทำงาน</h1>
+                <h1 class="text-2xl font-bold text-slate-800">การแจ้งเตือน</h1>
                 <p class="text-slate-500 text-sm mt-1" id="page-subtitle">รายการอัปเดตทั้งหมดของคุณ</p>
             </div>
             <div class="bg-indigo-50 p-2.5 rounded-2xl">
@@ -63,7 +62,6 @@
             </div>
             <h3 class="text-slate-600 font-bold">ไม่มีรายการใหม่</h3>
         </div>
-
     </main>
 
     <app-navbar></app-navbar>
@@ -87,13 +85,15 @@
             
             await loadNotifications();
             markAllAsRead(); 
-           initSocketNotificationSystem();
+            
+            if (typeof initSocketNotificationSystem === 'function') {
+                initSocketNotificationSystem();
+            }
         });
 
         async function loadNotifications() {
             if (isFetching) return; 
             isFetching = true;
-
             const loader = document.getElementById('loading');
             const token = localStorage.getItem('token');
             loader.classList.remove('hidden');
@@ -103,7 +103,6 @@
                     headers: { 'Authorization': `Bearer ${token}` } 
                 });
                 const data = await res.json();
-                
                 if (data.success) {
                     allNotifications = data.notifications;
                     renderList(allNotifications);
@@ -132,8 +131,8 @@
         function renderList(data) {
             const list = document.getElementById('notificationList');
             const empty = document.getElementById('emptyState');
-            
             const adminCards = Array.from(list.querySelectorAll('[id^="admin-card-"]'));
+            
             list.innerHTML = '';
             adminCards.forEach(card => list.appendChild(card));
             
@@ -146,20 +145,12 @@
             data.forEach((noti, index) => {
                 let info = noti.info || '';
                 const title = noti.Title || 'แจ้งเตือน';
-                
-                // 1. ✅ แปลงวันที่ภาษาอังกฤษยาวๆ เป็นไทย พ.ศ. (บวก 543 ปี)
                 const longDateRegex = /[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{2}\s\d{4}/g;
-                info = info.replace(longDateRegex, (match) => {
-                    return moment(match).add(543, 'years').format('D MMM YY'); 
-                });
-                
+                info = info.replace(longDateRegex, (match) => moment(match).add(543, 'years').format('D MMM YY'));
                 info = info.replace(/00:00:00 GMT\+0700 \(Indochina Time\)/g, '');
 
                 const isSuccess = info.includes('สำเร็จ') || info.includes('เรียบร้อย') || info.includes('อนุมัติแล้ว');
-                
-                // 2. ✅ เช็คสถานะรอหัวหน้าอนุมัติ
                 const isWaitingHeadNurse = info.includes('รอหัวหน้าอนุมัติ');
-                // 3. ✅ ถ้า "รอหัวหน้า" จะไม่แสดงปุ่มดำเนินการต่อ (isActionable = false)
                 const isActionable = (info.includes('รอ') || info.includes('ขอ')) && !isSuccess && !isWaitingHeadNurse;
                 
                 let theme = { icon: 'fa-bell', color: 'text-blue-500', bg: 'bg-blue-50' };
@@ -185,7 +176,6 @@
                             <p class="text-xs text-slate-600 mb-3 leading-relaxed">${info}</p>
                             <div class="flex items-center justify-between pt-2 border-t border-slate-100/50">
                                 <span class="text-[10px] text-slate-400 font-medium">โดย: ${noti.FirstName || 'ระบบ'}</span>
-                                
                                 ${isWaitingHeadNurse ? `
                                     <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
                                         <i class="fas fa-hourglass-half mr-1"></i> รอหัวหน้าพยาบาล
@@ -213,7 +203,7 @@
                     document.getElementById('emptyState').classList.add('hidden');
                     data.results.forEach(item => {
                         const cardHtml = `
-                        <div id="admin-card-${item.TransactionID}" class="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4 animate-item">
+                        <div id="admin-card-${item.TransactionID}" class="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
                             <div class="flex justify-between items-start mb-3">
                                 <span class="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">รออนุมัติการซื้อขาย</span>
                                 <small class="text-slate-400 text-xs">${moment(item.CreatedAt).fromNow()}</small>
@@ -252,17 +242,11 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ transactionId, action, adminId: currentUser.UserID })
                 });
-
                 const data = await res.json();
                 if (data.success) {
                     const actionContainer = document.getElementById(`admin-actions-${transactionId}`);
                     if (actionContainer) {
-                        actionContainer.innerHTML = `<div class="w-full text-center py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-xs animate-pulse"><i class="fas fa-check-circle mr-1"></i> ดำเนินการสำเร็จ</div>`;
-                    }
-                    const card = document.getElementById(`admin-card-${transactionId}`);
-                    if (card) {
-                        card.classList.replace('border-indigo-100', 'border-emerald-100');
-                        card.style.opacity = '0.7';
+                        actionContainer.innerHTML = `<div class="w-full text-center py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-xs"><i class="fas fa-check-circle mr-1"></i> ดำเนินการสำเร็จ</div>`;
                     }
                     Swal.fire({ icon: 'success', title: 'เรียบร้อย', timer: 1000, showConfirmButton: false });
                     setTimeout(loadNotifications, 1000);
@@ -275,8 +259,7 @@
         function handleActionRedirect(info) {
             if (info.includes('ซื้อ') || info.includes('ขาย')) {
                 window.location.href = 'trade_market.html';
-            } 
-            else if (info.includes('แลก') || info.includes('สลับ')) {
+            } else if (info.includes('แลก') || info.includes('สลับ')) {
                 window.location.href = 'swap_request.html'; 
             }
         }
