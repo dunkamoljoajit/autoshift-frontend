@@ -96,7 +96,7 @@
             isFetching = true;
             const loader = document.getElementById('loading');
             const token = localStorage.getItem('token');
-            loader.classList.remove('hidden');
+            if (loader) loader.classList.remove('hidden');
 
             try {
                 const res = await fetch(`${API_URL}/api/notifications/all/${currentUser.UserID}`, { 
@@ -111,7 +111,7 @@
                 console.error("Load Notifications Error:", err);
             } finally {
                 isFetching = false;
-                loader.classList.add('hidden');
+                if (loader) loader.classList.add('hidden');
             }
         }
 
@@ -131,20 +131,23 @@
         function renderList(data) {
             const list = document.getElementById('notificationList');
             const empty = document.getElementById('emptyState');
+            if (!list) return;
+
             const adminCards = Array.from(list.querySelectorAll('[id^="admin-card-"]'));
-            
             list.innerHTML = '';
             adminCards.forEach(card => list.appendChild(card));
             
             if ((!data || data.length === 0) && adminCards.length === 0) { 
-                empty.classList.remove('hidden'); 
+                if (empty) empty.classList.remove('hidden'); 
                 return; 
             }
-            empty.classList.add('hidden');
+            if (empty) empty.classList.add('hidden');
 
             data.forEach((noti, index) => {
                 let info = noti.info || '';
                 const title = noti.Title || 'แจ้งเตือน';
+                
+                // Format date for display
                 const longDateRegex = /[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{2}\s\d{4}/g;
                 info = info.replace(longDateRegex, (match) => moment(match).add(543, 'years').format('D MMM YY'));
                 info = info.replace(/00:00:00 GMT\+0700 \(Indochina Time\)/g, '');
@@ -161,7 +164,7 @@
                 const html = `
                 <div class="card-enter bg-white rounded-2xl border p-4 shadow-sm mb-4 ${isActionable ? 'clickable-card border-indigo-500 bg-indigo-50/30' : 'border-slate-100'}" 
                     style="animation-delay: ${index * 0.05}s"
-                    onclick="${isActionable ? `handleActionRedirect('${noti.info}')` : ''}">
+                    onclick="${isActionable ? `handleActionRedirect('${noti.info.replace(/'/g, "\\'")}')` : ''}">
                     <div class="flex gap-4">
                         <div class="w-12 h-12 rounded-2xl ${theme.bg} flex-shrink-0 flex items-center justify-center shadow-sm">
                             <i class="fas ${theme.icon} ${theme.color} text-lg"></i>
@@ -194,13 +197,17 @@
         async function fetchAdminPendingActions() {
             const token = localStorage.getItem('token');
             const container = document.getElementById('notificationList'); 
+            if (!container) return;
+
             try {
                 const res = await fetch(`${API_URL}/api/admin/market/pending`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (data.success && data.results.length > 0) {
-                    document.getElementById('emptyState').classList.add('hidden');
+                    const emptyState = document.getElementById('emptyState');
+                    if (emptyState) emptyState.classList.add('hidden');
+                    
                     data.results.forEach(item => {
                         const cardHtml = `
                         <div id="admin-card-${item.TransactionID}" class="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
