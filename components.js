@@ -304,11 +304,7 @@ function showSmartToast(message) {
     setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 500); }, 5000);
 }
 
-/**
- * [แก้ไขใหม่] ฟังก์ชันเริ่มระบบ Real-time Notification
- * แทนที่ระบบ Polling (20 วินาทีเดิม)
- */
-function initSocketNotificationSystem() {
+function initSocket() {
     if (window.socket && window.socket.connected) return;
 
     const user = getUser();
