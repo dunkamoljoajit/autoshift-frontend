@@ -86,31 +86,39 @@ async function logout() {
 // --- App Header ---
 class AppHeader extends HTMLElement {
     connectedCallback() {
-        const user = getUser(); 
+        const user = getUser(); // ดึงข้อมูลผู้ใช้จาก localStorage
         if (!user) return;
+
         const isHead = user.RoleID === 1;
+        // ตรวจสอบว่าเป็น iPad แนวนอนหรือไม่ เพื่อปรับขนาด UI ให้เหมาะสม
+        const isLandscape = window.innerWidth > window.innerHeight && window.innerWidth <= 1194;
+
         const theme = isHead
             ? { hexColor: '#7c3aed', iconBg: '#7c3aed', title: 'HEAD NURSE', sub: 'ADMINISTRATION', homeLink: 'Headnurse_dashboard.html', notiLink: 'notifications.html', userIcon: 'fa-user-md' }
             : { hexColor: '#4f46e5', iconBg: '#4f46e5', title: `สวัสดี ${user.FirstName}`, sub: 'NURSE SYSTEM', homeLink: 'dashboard.html', notiLink: 'notifications.html', userIcon: 'fa-user-nurse' };
 
         this.innerHTML = `
         <header class="bg-white sticky top-0 w-full shadow-sm" style="z-index: 2000 !important; border-top: 4px solid ${theme.hexColor};">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center relative">
-                <a href="${theme.homeLink}" class="flex items-center gap-3 shrink-0">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md transition-transform hover:scale-105" style="background-color: ${theme.iconBg};">
-                        <i class="fas ${theme.userIcon} text-lg"></i> 
+            <div class="max-w-[1400px] mx-auto px-4 md:px-8 ${isLandscape ? 'py-2' : 'py-3'} flex justify-between items-center relative">
+                
+                <a href="${theme.homeLink}" class="flex items-center gap-3 shrink-0 group">
+                    <div class="${isLandscape ? 'w-8 h-8' : 'w-10 h-10'} rounded-xl flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-105" style="background-color: ${theme.iconBg};">
+                        <i class="fas ${theme.userIcon} ${isLandscape ? 'text-sm' : 'text-lg'}"></i> 
                     </div>
                     <div class="flex flex-col">
-                        <h1 class="text-sm sm:text-lg font-bold text-slate-800 leading-none">${theme.title}</h1>
+                        <h1 class="${isLandscape ? 'text-sm' : 'text-sm sm:text-lg'} font-bold text-slate-800 leading-none">${theme.title}</h1>
                         <p class="text-[9px] text-slate-400 font-medium tracking-wide mt-1 uppercase">${theme.sub}</p>
                     </div>
                 </a>
+
                 <div class="flex items-center gap-3 sm:gap-5 shrink-0">
+                    
                     <div class="relative inline-block">
                         <button id="noti-trigger" class="relative p-2 rounded-full hover:bg-slate-50 transition-all group focus:outline-none">
-                            <i class="fas fa-bell text-2xl text-slate-400 transition-colors group-hover:text-indigo-500"></i>
+                            <i class="fas fa-bell ${isLandscape ? 'text-xl' : 'text-2xl'} text-slate-400 transition-colors group-hover:text-indigo-500"></i>
                             <span id="unread-count" class="hidden absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white shadow-sm ring-1 ring-red-200">0</span>
                         </button>
+                        
                         <div id="noti-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[92vw] sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden origin-top transition-all duration-200" style="z-index: 2001;">
                             <div class="px-4 py-3 border-b border-slate-50 bg-slate-50 flex justify-between items-center">
                                 <h3 class="text-sm font-bold text-slate-700">การแจ้งเตือน</h3>
@@ -122,8 +130,9 @@ class AppHeader extends HTMLElement {
                             <a href="${theme.notiLink}" class="block bg-slate-50 py-3 text-center text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-100 border-t border-slate-100 transition-colors">ดูทั้งหมด</a>
                         </div>
                     </div>
+
                     <div id="profile-menu-trigger" class="relative flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-50 py-1 pl-1 pr-3 rounded-full border border-slate-200 shadow-sm transition-all min-w-fit">
-                        <img id="header-avatar" class="w-10 h-10 rounded-full object-cover border border-slate-100 shadow-sm shrink-0" src="${getProfileImageUrl(user.ProfileImage)}" onerror="this.src='https://placehold.co/100?text=User'">
+                        <img id="header-avatar" class="${isLandscape ? 'w-8 h-8' : 'w-10 h-10'} rounded-full object-cover border border-slate-100 shadow-sm shrink-0" src="${getProfileImageUrl(user.ProfileImage)}" onerror="this.src='https://placehold.co/100?text=User'">
                         <div class="flex flex-col items-start leading-tight">
                             <span class="text-sm font-bold text-slate-700 truncate max-w-[100px]">${user.FirstName}</span>
                             <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-0.5 tracking-tight uppercase">
@@ -135,11 +144,13 @@ class AppHeader extends HTMLElement {
                 </div>
             </div>
         </header>`;
-        this.setupProfileLogic(user);
-        this.setupNotiLogic(user);
-        this.fetchBadgeCount(user);
+
+        this.setupProfileLogic(user); // ตั้งค่าเมนูโปรไฟล์
+        this.setupNotiLogic(user);    // ตั้งค่าระบบแจ้งเตือน
+        this.fetchBadgeCount(user);   // ดึงจำนวนรายการค้าง
     }
 
+    // --- Logic ส่วนการจัดการ Notification และ Profile คัดลอกจาก components.js เดิมของคุณ ---
     setupNotiLogic(user) {
         const trigger = this.querySelector('#noti-trigger');
         const dropdown = this.querySelector('#noti-dropdown');
@@ -160,9 +171,7 @@ class AppHeader extends HTMLElement {
 
     async loadNotificationsInDropdown(user, container) {
         try {
-            const token = localStorage.getItem('token');
             const res = await apiRequest(`${API_BASE}/api/notifications/all/${user.UserID}`);
-            if (!res.ok) throw new Error("Load failed");
             const data = await res.json();
             container.innerHTML = ""; 
             if (!data.success || data.notifications.length === 0) {
@@ -170,7 +179,7 @@ class AppHeader extends HTMLElement {
                 return;
             }
             data.notifications.slice(0, 5).forEach(noti => {
-                const timeAgo = new Date(noti.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+                const timeAgo = moment(noti.created_at).fromNow();
                 const isSystem = noti.type === 'system';
                 const iconBg = isSystem ? 'bg-blue-50 text-blue-500' : 'bg-orange-50 text-orange-500';
                 container.innerHTML += `
@@ -179,7 +188,7 @@ class AppHeader extends HTMLElement {
                         <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]"><i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i></div>
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-center gap-2">
-                                <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? noti.LastName : noti.FirstName}</h4>
+                                <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? 'ระบบ' : noti.FirstName}</h4>
                                 <span class="text-[9px] text-slate-400 whitespace-nowrap">${timeAgo}</span>
                             </div>
                             <p class="text-[10px] text-slate-500 truncate mt-0.5 font-light">${noti.info}</p>
@@ -193,44 +202,35 @@ class AppHeader extends HTMLElement {
     async fetchBadgeCount(user) {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return;
             const isHead = user.RoleID === 1;
             const endpoint = isHead ? '/api/admin/pending-counts' : `/api/notifications/unread-count/${user.UserID}`;
-            const res = await fetch(`${API_BASE}${endpoint}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-            });
-            if (!res.ok) return;
+            const res = await fetch(`${API_BASE}${endpoint}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
             if (data.success) {
                 const badge = this.querySelector('#unread-count');
                 const count = isHead ? (data.total || 0) : (data.count || 0);
-                if (badge) { 
-                    if (count > 0) {
-                        badge.innerText = count > 99 ? '99+' : count;
-                        badge.classList.remove('hidden');
-                    } else { badge.classList.add('hidden'); }
+                if (badge && count > 0) {
+                    badge.innerText = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
                 }
             }
-        } catch (err) { console.error("Badge Error:", err); }
+        } catch (err) { console.error(err); }
     }
 
     setupProfileLogic(user) {
         const trigger = this.querySelector('#profile-menu-trigger');
         let dropdown = document.getElementById('global-custom-dropdown');
         if (!dropdown) {
-            const dropdownHtml = `
+            document.body.insertAdjacentHTML('afterbegin', `
             <div id="global-custom-dropdown" class="hidden fixed w-44 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 origin-top-right transition-all duration-200" style="z-index: 9999 !important;"> 
                 <a href="profile-edit.html" class="flex items-center px-4 py-2 text-[12px] text-slate-600 hover:bg-slate-50"><i class="fas fa-user-edit w-5 mr-2 text-indigo-500"></i> แก้ไขโปรไฟล์</a>
                 <div class="border-t border-slate-100 my-1"></div>
                 <button id="header-logout-btn" class="w-full text-left flex items-center px-4 py-2 text-[12px] text-red-500 hover:bg-red-50"><i class="fas fa-sign-out-alt w-5 mr-2"></i> ออกจากระบบ</button>
-            </div>`;
-            document.body.insertAdjacentHTML('afterbegin', dropdownHtml);
+            </div>`);
             dropdown = document.getElementById('global-custom-dropdown');
         }
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            const notiDropdown = this.querySelector('#noti-dropdown');
-            if(notiDropdown) notiDropdown.classList.add('hidden');
             const triggerRect = trigger.getBoundingClientRect();
             dropdown.style.top = `${triggerRect.bottom + 10}px`; 
             dropdown.style.right = `${window.innerWidth - triggerRect.right}px`;
@@ -240,51 +240,117 @@ class AppHeader extends HTMLElement {
         dropdown.querySelector('#header-logout-btn').onclick = () => logout();
     }
 }
-if (!customElements.get('app-header')) customElements.define('app-header', AppHeader);
+customElements.define('app-header', AppHeader);
 
 // --- App Navbar (เมนูล่าง Auto-Hide) ---
+// --- App Navbar (เมนูล่าง Auto-Hide & Responsive for iPad) ---
 class AppNavbar extends HTMLElement {
     constructor() {
         super();
+        // ฟังก์ชันสำหรับสั่งเปิด/ปิด Nav จากภายนอก
         window.toggleBottomNav = (show) => {
             const nav = this.querySelector('nav');
             if (!nav) return;
-            show === undefined ? nav.classList.toggle('nav-hidden') : (show ? nav.classList.remove('nav-hidden') : nav.classList.add('nav-hidden'));
+            show === undefined 
+                ? nav.classList.toggle('nav-hidden') 
+                : (show ? nav.classList.remove('nav-hidden') : nav.classList.add('nav-hidden'));
         };
     }
-    connectedCallback() { this.render(); this.initScrollEffect(); }
+
+    connectedCallback() { 
+        this.render(); 
+        this.initScrollEffect(); 
+    }
+
+    // ระบบซ่อนเมนูอัตโนมัติเมื่อเลื่อนลง (Scroll Down to Hide)
     initScrollEffect() {
-        let lastScrollY = window.scrollY;
-        this._scrollHandler = () => {
-            const nav = this.querySelector('nav');
-            if (!nav) return;
-            if (window.scrollY > lastScrollY && window.scrollY > 100) nav.classList.add('nav-hidden');
-            else nav.classList.remove('nav-hidden');
-            lastScrollY = window.scrollY;
-        };
-        window.addEventListener('scroll', this._scrollHandler, { passive: true });
+    let lastScrollY = window.scrollY;
+    // เก็บฟังก์ชันไว้ใน property ของ class
+    this._handleScroll = () => {
+        const nav = this.querySelector('nav');
+        if (!nav) return;
+        if (window.scrollY > lastScrollY && window.scrollY > 100) {
+            nav.classList.add('nav-hidden');
+        } else {
+            nav.classList.remove('nav-hidden');
+        }
+        lastScrollY = window.scrollY;
+    };
+    window.addEventListener('scroll', this._handleScroll, { passive: true });
+}
+
+    disconnectedCallback() { 
+        // ลบ listener ออกโดยอ้างอิงฟังก์ชันเดิม
+        window.removeEventListener('scroll', this._handleScroll); 
     }
-    disconnectedCallback() { window.removeEventListener('scroll', this._scrollHandler); }
+
     render() {
-        const user = getUser(); if (!user) return;
+        const user = getUser(); 
+        if (!user) return;
+
         const isHead = user.RoleID === 1;
+        // กำหนดเมนูตามสิทธิ์การใช้งาน
         const menus = isHead 
-            ? [ { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' }, { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' } ]
-            : [ { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' }, { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' } ];
+            ? [ 
+                { href: 'Headnurse_dashboard.html', icon: 'fa-chart-line', label: 'ภาพรวม' }, 
+                { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, 
+                { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, 
+                { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, 
+                { href: 'nurse_list.html', icon: 'fa-user-nurse', label: 'บุคลากร' }, 
+                { href: 'state.html', icon: 'fa-chart-bar', label: 'สถิติ' } 
+              ]
+            : [ 
+                { href: 'dashboard.html', icon: 'fa-home', label: 'หน้าหลัก' }, 
+                { href: 'swap_request.html', icon: 'fa-exchange-alt', label: 'แลกเวร' }, 
+                { href: 'trade_market.html', icon: 'fa-shopping-cart', label: 'ซื้อขาย' }, 
+                { href: 'schedule.html', icon: 'fa-calendar-alt', label: 'ตารางเวร' }, 
+                { href: 'statistics.html', icon: 'fa-chart-bar', label: 'สถิติ' } 
+              ];
+
         const activeColor = isHead ? 'text-violet-600' : 'text-indigo-600';
         const barColor = isHead ? 'bg-violet-600' : 'bg-indigo-600';
+        
         const menuHtml = menus.map(m => {
             const isActive = window.location.href.includes(m.href);
-            return `<a href="${m.href}" class="flex flex-col items-center justify-center relative w-full h-full group transition-all duration-200 ${isActive ? activeColor : 'text-gray-400 hover:text-gray-600'}">
+            return `
+            <a href="${m.href}" class="flex flex-col items-center justify-center relative w-full h-full group transition-all duration-200 ${isActive ? activeColor : 'text-gray-400 hover:text-gray-600'}">
                 ${isActive ? `<div class="absolute top-0 w-8 h-1 ${barColor} rounded-b-lg shadow-sm"></div>` : ''}
                 <i class="fas ${m.icon} text-xl mb-1 transition-transform group-hover:-translate-y-1"></i>
-                <span class="text-[10px] font-medium">${m.label}</span>
+                <span class="text-[10px] font-bold tracking-tight">${m.label}</span>
             </a>`;
         }).join('');
-        this.innerHTML = `<style>app-navbar nav { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; } app-navbar nav.nav-hidden { transform: translateY(100%); opacity: 0; pointer-events: none; }</style><nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]"><div class="max-w-screen-md mx-auto flex justify-between items-center h-16 px-1">${menuHtml}</div></nav>`;
+
+        this.innerHTML = `
+        <style>
+            app-navbar nav { 
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; 
+            }
+            app-navbar nav.nav-hidden { 
+                transform: translateY(100%); 
+                opacity: 0; 
+                pointer-events: none; 
+            }
+            
+            /* 🔥 แก้ปัญหา iPad แนวนอน: จำกัดความกว้างเมนูไม่ให้ห่างกันเกินไป */
+            @media (min-width: 768px) {
+                app-navbar nav div.menu-container {
+                    max-width: 800px !important; 
+                    margin: 0 auto;
+                    padding: 0 20px;
+                }
+            }
+        </style>
+        <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-100 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div class="menu-container flex justify-between items-center h-16">
+                ${menuHtml}
+            </div>
+        </nav>`;
     }
 }
-if (!customElements.get('app-navbar')) customElements.define('app-navbar', AppNavbar);
+
+if (!customElements.get('app-navbar')) {
+    customElements.define('app-navbar', AppNavbar);
+}
 
 // --- App Date Picker ---
 class AppDatePicker extends HTMLElement {

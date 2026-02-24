@@ -4613,3 +4613,8 @@ video {
     color: #64748b;
     font-size: 12px;
 }
+@media screen and (orientation: landscape) {
+    main {
+        min-height: -webkit-fill-available;
+    }
+}
