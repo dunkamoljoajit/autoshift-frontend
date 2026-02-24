@@ -444,10 +444,7 @@
 
             try {
                 // --- 1. ดึงคำขอสำหรับพยาบาลทั่วไป (Pending_Seller) ---
-                const res = await fetch(`${API_BASE}/api/market/incoming-requests/${currentUserId}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_BASE}/api/market/incoming-requests/${currentUserId}`);
                 const data = await res.json();
                 let allRequests = data.requests || [];
 
@@ -590,10 +587,7 @@
 
             try {
                 // ดึงข้อมูลเวรของคุณ (ตรวจสอบว่า Backend ส่งสถานะธุรกรรมมาด้วย)
-                const res = await fetch(`${API_BASE}/api/my-sellable-shifts/${currentUserId}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_BASE}/api/my-sellable-shifts/${currentUserId}`);
 
                 if(res.status === 401) { window.location.href = 'login.html'; return; }
                 const data = await res.json();
@@ -673,9 +667,8 @@
                     message: formData.get('message') || '' 
                 };
 
-                const res = await fetch(`${API_BASE}/api/sell-shift`, {
+                const res = await apiRequest(`${API_BASE}/api/sell-shift`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
@@ -752,9 +745,7 @@
 
             try {
                 // ดึงรายชื่อเวรที่ขายได้ (My Sellable Shifts)
-                const res = await fetch(`${API_BASE}/api/my-sellable-shifts/${currentUserId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_BASE}/api/my-sellable-shifts/${currentUserId}`);
                 const data = await res.json();
                 
                 let shiftOptionsHtml = '';
@@ -902,15 +893,11 @@
             if (result.isConfirmed) {
                 const token = localStorage.getItem('token');
                 try {
-                    const res = await fetch(`${API_BASE}/api/admin/market/action`, {
+                    const res = await apiRequest(`${API_BASE}/api/admin/market/action`, {
                         method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${token}` 
-                        },
                         body: JSON.stringify({ 
-                            transactionId: transactionId, 
-                            action: action, 
+                            transactionId, 
+                            action, 
                             adminId: currentUserId 
                         })
                     });
@@ -933,10 +920,7 @@
             const container = document.getElementById('marketContainer'); // หรือ ID ของส่วนแสดงผลแจ้งเตือน
 
             try {
-                const res = await fetch(`${API_BASE}/api/admin/market/pending`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_BASE}/api/admin/market/pending`);
                 const data = await res.json();
 
                 if (data.success && data.results.length > 0) {

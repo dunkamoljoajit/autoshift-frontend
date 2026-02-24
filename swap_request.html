@@ -425,9 +425,7 @@ async function openEditPostModal(post) {
 
         const select = document.getElementById('edit-post-schedule-id');
         select.innerHTML = '<option value="" disabled>🔄 กำลังโหลด...</option>';
-        const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`);
         const data = await res.json();
 
         if (data.success) {
@@ -463,9 +461,8 @@ async function handleUpdatePost(e) {
     submitBtn.disabled = true;
 
     try {
-        const res = await fetch(`${API_BASE}/api/posts/update/${postId}`, {
+        const res = await apiRequest(`${API_BASE}/api/posts/update/${postId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(body)
         });
         const data = await res.json();
@@ -486,9 +483,7 @@ async function fetchMyActivePost() {
     const container = document.getElementById('my-posts-list');
     const token = localStorage.getItem('token'); 
     try {
-        const res = await fetch(`${API_BASE}/api/posts/user/${currentUser.UserID}`, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-        });
+        const res = await apiRequest(`${API_BASE}/api/posts/user/${currentUser.UserID}`);
         const data = await res.json();
         if(!data.success || !data.results.length) { 
             container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs italic">ยังไม่มีประกาศของคุณ</div>'; 
@@ -520,7 +515,7 @@ async function openRequestModal(targetId, targetName, scheduleId) {
     document.getElementById('requestModalContent').classList.replace('scale-90', 'scale-100');
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`);
         const data = await res.json();
         if (data.success && data.results.length > 0) {
             let options = '<option value="">-- เลือกเวรของคุณที่แลกแล้วปลอดภัย --</option>';
@@ -535,9 +530,8 @@ async function handleSendRequest(e) {
     const myScheduleId = document.getElementById('my-offer-shift').value;
     if(!myScheduleId) return Swal.fire('กรุณาเลือกเวร', '', 'warning');
     try {
-        const res = await fetch(`${API_BASE}/api/swaps/send-request`, {
+        const res = await apiRequest(`${API_BASE}/api/swaps/send-request`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}`},
             body: JSON.stringify({ requesterId: currentUser.UserID, targetUserId: document.getElementById('modal-target-user-id').value, targetScheduleId: document.getElementById('modal-target-schedule-id').value, requesterScheduleId: myScheduleId, reason: document.getElementById('modal-reason').value })
         });
         const data = await res.json();
@@ -553,7 +547,7 @@ async function openPostModal() {
     setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
     document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
     try {
-        const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { headers: {'Authorization': `Bearer ${token}`} });
+        const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`);
         const data = await res.json();
         if (data.success && data.results.length > 0) {
             let options = '<option value="">-- เลือกเวรที่ปลอดภัยเพื่อประกาศแลก --</option>';
@@ -569,9 +563,8 @@ async function openPostModal() {
 async function handleCreatePost(e) {
     e.preventDefault();
     try {
-        const res = await fetch(`${API_BASE}/api/posts/create`, {
+        const res = await apiRequest(`${API_BASE}/api/posts/create`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}`},
             body: JSON.stringify({ userId: currentUser.UserID, scheduleId: document.getElementById('post-my-shift').value, desiredDate: document.getElementById('post-desired-date').value, note: document.getElementById('post-note').value })
         });
         const data = await res.json();
@@ -583,7 +576,7 @@ async function fetchIncomingRequests() {
     const container = document.getElementById('incoming-list');
     const badge = document.getElementById('incoming-badge');
     try {
-        const res = await fetch(`${API_BASE}/api/swaps/incoming/${currentUser.UserID}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const res = await apiRequest(`${API_BASE}/api/swaps/incoming/${currentUser.UserID}`);
         const data = await res.json();
         if(data.success && data.results.length > 0) {
             badge.innerText = data.results.length; badge.classList.remove('hidden');
@@ -596,7 +589,10 @@ async function respondSwap(id, act) {
     const confirm = await Swal.fire({ title: 'ยืนยันดำเนินการ?', icon: 'question', showCancelButton: true });
     if (!confirm.isConfirmed) return;
     try {
-        const res = await fetch(`${API_BASE}/api/swaps/respond`, { method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}`}, body: JSON.stringify({ swapId: id, action: act, responderId: currentUser.UserID }) });
+        const res = await apiRequest(`${API_BASE}/api/swaps/respond`, {
+            method: 'POST',
+            body: JSON.stringify({ swapId: id, action: act, responderId: currentUser.UserID })
+        });
         const data = await res.json();
         if(data.success) { fetchIncomingRequests(); Swal.fire('สำเร็จ', '', 'success'); }
     } catch(e) { Swal.fire('Error', '', 'error'); }
@@ -606,7 +602,7 @@ async function fetchPendingApprovals() {
     const container = document.getElementById('approval-list');
     const badge = document.getElementById('approval-badge');
     try {
-        const res = await fetch(`${API_BASE}/api/admin/swaps/pending`, { 
+        const res = await apiRequest(`${API_BASE}/api/admin/swaps/pending`, { 
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
         });
         const data = await res.json();
@@ -658,7 +654,10 @@ async function respondApproval(id, act) {
     const confirm = await Swal.fire({ title: 'ยืนยันดำเนินการ?', icon: 'question', showCancelButton: true });
     if (!confirm.isConfirmed) return;
     try {
-        const res = await fetch(`${API_BASE}/api/admin/swaps/action`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }, body: JSON.stringify({ swapId: id, action: act, adminId: currentUser.UserID }) });
+        const res = await apiRequest(`${API_BASE}/api/admin/swaps/action`, {
+            method: 'POST',
+            body: JSON.stringify({ swapId: id, action: act, adminId: currentUser.UserID })
+        });
         const data = await res.json();
         if (data.success) { fetchPendingApprovals(); Swal.fire('สำเร็จ', '', 'success'); }
     } catch(e) { Swal.fire('Error', '', 'error'); }
@@ -667,7 +666,7 @@ async function respondApproval(id, act) {
 async function deletePost(postId, scheduleId) {
     const confirm = await Swal.fire({ title: 'ลบประกาศ?', icon: 'warning', showCancelButton: true });
     if (confirm.isConfirmed) {
-        const res = await fetch(`${API_BASE}/api/posts/delete/${postId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const res = await apiRequest(`${API_BASE}/api/posts/delete/${postId}`, { method: 'DELETE' });
         const data = await res.json();
         if(data.success) { fetchMyActivePost(); Swal.fire('สำเร็จ', '', 'success'); }
     }

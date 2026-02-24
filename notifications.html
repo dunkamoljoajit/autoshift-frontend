@@ -99,9 +99,7 @@
             if (loader) loader.classList.remove('hidden');
 
             try {
-                const res = await fetch(`${API_URL}/api/notifications/all/${currentUser.UserID}`, { 
-                    headers: { 'Authorization': `Bearer ${token}` } 
-                });
+                const res = await apiRequest(`${API_URL}/api/notifications/all/${currentUser.UserID}`);
                 const data = await res.json();
                 if (data.success) {
                     allNotifications = data.notifications;
@@ -200,9 +198,7 @@
             if (!container) return;
 
             try {
-                const res = await fetch(`${API_URL}/api/admin/market/pending`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_URL}/api/admin/market/pending`);
                 const data = await res.json();
                 if (data.success && data.results.length > 0) {
                     const emptyState = document.getElementById('emptyState');
@@ -244,9 +240,8 @@
             if (!confirm.isConfirmed) return;
 
             try {
-                const res = await fetch(`${API_URL}/api/admin/market/action`, {
+                const res = await apiRequest(`${API_URL}/api/admin/market/action`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ transactionId, action, adminId: currentUser.UserID })
                 });
                 const data = await res.json();

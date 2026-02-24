@@ -232,9 +232,7 @@
             const token = localStorage.getItem('token');
             
             try {
-                const res = await fetch(`${API_URL}/api/admin/daily-schedule?date=${currentTargetDate}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await apiRequest(`${API_URL}/api/admin/daily-schedule?date=${currentTargetDate}`);
                 const data = await res.json();
                 if (data.success) renderShifts(data.shifts);
             } catch (err) { console.error(err); }
@@ -293,9 +291,7 @@
             document.getElementById('modal-subtitle').innerText = `${shiftNames[shiftId]} | ${moment(currentTargetDate).format('DD MMM YYYY')}`;
             
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/all-nurses`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await apiRequest(`${API_URL}/api/admin/all-nurses`);
             const data = await res.json();
             
             const select = document.getElementById('nurse-select');
@@ -313,9 +309,8 @@
             const userId = document.getElementById('nurse-select').value;
             if(!userId) return;
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/add-shift-manual`, {
+            const res = await apiRequest(`${API_URL}/api/admin/add-shift-manual`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ userId, date: currentTargetDate, shiftId: currentTargetShift })
             });
             const data = await res.json();

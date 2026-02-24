@@ -14,11 +14,42 @@ function getProfileImageUrl(path) {
     return path.startsWith('http') ? path : `${API_BASE}/uploads/${path}`;
 }
 
+// เพิ่มฟังก์ชันกลางไว้ในส่วน Config (ส่วนที่ 1)
+async function apiRequest(url, options = {}) {
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    // ✅ เพิ่มเช็ค: ถ้าไม่ใช่ FormData ให้ใส่ Content-Type เป็น JSON
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    const response = await fetch(url, { ...options, headers });
+
+    // ถ้า Server ตอบกลับมาว่า 401 (ซึ่งเราแก้ Middleware ใน server.js ไว้แล้ว)
+    if (response.status === 401) {
+        const data = await response.json();
+        if (data.forceLogout) {
+            localStorage.clear();
+            window.location.href = 'login.html?reason=session_expired';
+            return;
+        }
+    }
+    return response;
+}
+
 async function logout() {
     const user = getUser(); 
     const token = localStorage.getItem('token');
-    if (user && user.UserID) {
+
+    // 1. ส่งสัญญาณบอก Server (ถ้ามีข้อมูลครบ)
+    if (user && user.UserID && token) {
         try {
+            // แนะนำให้ใช้ fetch ปกติที่นี่ (ไม่ใช่ apiRequest) 
+            // เพราะเรากำลังจะเคลียร์ทิ้งอยู่แล้ว ไม่ต้องดัก 401 ซ้อน
             await fetch(`${API_BASE}/logout`, {
                 method: 'POST',
                 headers: {
@@ -31,13 +62,21 @@ async function logout() {
             console.error("Logout API Error:", err);
         }
     }
+
+    // 2. [สำคัญ] ล้างค่าในเครื่องให้เกลี้ยง
     localStorage.clear();
-    // [อัปเกรด] ตัดการเชื่อมต่อ Socket ทันทีเมื่อ Logout
+    sessionStorage.clear(); // ล้าง session เผื่อมีการเก็บค่าชั่วคราวไว้
+
+    // 3. [อัปเกรด] ตัดกุญแจ Socket ทันที
     if (window.socket) {
+        console.log("🔌 Disconnecting socket...");
         window.socket.disconnect();
         window.socket = null;
     }
-    window.location.href = 'login.html';
+
+    // 4. พาไปหน้า Login
+    // แนะนำให้เพิ่ม query string เพื่อแจ้งผู้ใช้ (Optional)
+    window.location.href = 'login.html?logout=success';
 }
 
 // =========================================================
@@ -122,9 +161,7 @@ class AppHeader extends HTMLElement {
     async loadNotificationsInDropdown(user, container) {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE}/api/notifications/all/${user.UserID}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await apiRequest(`${API_BASE}/api/notifications/all/${user.UserID}`);
             if (!res.ok) throw new Error("Load failed");
             const data = await res.json();
             container.innerHTML = ""; 
@@ -325,7 +362,26 @@ function initSocketNotificationSystem() {
         console.log('✅ Socket connected. ID:', window.socket.id);
         window.socket.emit('register_user', user.UserID);
     });
-
+    window.socket.on('force_logout', () => {
+        console.log("⚠️ Received force_logout command");
+        
+        localStorage.clear(); // ล้างข้อมูลกุญแจเก่าทิ้งทั้งหมด
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'เซสชั่นหมดอายุ',
+                text: 'รหัสผ่านถูกเปลี่ยน กรุณาเข้าสู่ระบบใหม่เพื่อความปลอดภัย',
+                confirmButtonColor: '#191970',
+                allowOutsideClick: false
+            }).then(() => {
+                window.location.href = 'login.html';
+            });
+        } else {
+            alert('รหัสผ่านถูกเปลี่ยน กรุณาเข้าสู่ระบบใหม่');
+            window.location.href = 'login.html';
+        }
+    });
     // เมื่อได้รับการแจ้งเตือนใหม่ (Real-time)
     window.socket.on('receive_notification', (data) => {
         // แสดง Toast แจ้งเตือน

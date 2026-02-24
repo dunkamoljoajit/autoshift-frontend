@@ -143,9 +143,8 @@
         async function checkExistingSchedule(month, year) {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API_URL}/api/full-schedule`, {
+                const res = await apiRequest(`${API_URL}/api/full-schedule`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ month, year })
                 });
                 const data = await res.json();
@@ -193,9 +192,8 @@
 
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${API_URL}/api/admin/generate-schedule`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, {
+                    method: 'POST'
                 });
                 const data = await res.json();
                 loadArea.classList.add('hidden');
@@ -242,9 +240,8 @@
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            const res = await fetch(`${API_URL}/api/full-schedule`, {
+            const res = await apiRequest(`${API_URL}/api/full-schedule`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ month: m, year: y })
             });
             const data = await res.json();

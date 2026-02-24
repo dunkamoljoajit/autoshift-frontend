@@ -370,12 +370,8 @@
             const token = localStorage.getItem('token');
             
             // 1. ส่งข้อมูลบันทึก Settings
-            const res = await fetch(`${API_URL}/api/admin/save-settings`, {
+            const res = await apiRequest(`${API_URL}/api/admin/save-settings`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -436,13 +432,9 @@
         if(!result.isConfirmed) return;
 
         try {
-            const res = await fetch(`${API_URL}/api/admin/toggle-window`, { 
-                method:'POST', 
-                headers:{
-                    'Content-Type':'application/json', 
-                    'Authorization':`Bearer ${localStorage.getItem('token')}`
-                }, 
-                body:JSON.stringify({ status }) 
+            const res = await apiRequest(`${API_URL}/api/admin/toggle-window`, { 
+                method: 'POST', 
+                body: JSON.stringify({ status }) 
             });
             const data = await res.json();
             if(data.success) {
@@ -456,9 +448,7 @@
     // ดึงยอดรออนุมัติ Swap และ Trade
     async function fetchPendingCounts() {
         try {
-            const res = await fetch(`${API_URL}/api/admin/pending-counts`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
+            const res = await apiRequest(`${API_URL}/api/admin/pending-counts`);
             const data = await res.json();
             if (data.success) {
                 const s = document.getElementById('pending-swap-count');
@@ -472,9 +462,7 @@
     // ดึงความคืบหน้าการส่งข้อจำกัดของพยาบาลทุกคน
     async function updateConstraintStatus() {
         try {
-            const res = await fetch(`${API_URL}/api/constraint-status`, { 
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
-            });
+            const res = await apiRequest(`${API_URL}/api/constraint-status`);
             const data = await res.json();
             if (data.success) {
                 const txt = document.querySelector('.progress-text');
@@ -492,9 +480,7 @@
     // ดึงสถานะส่วนตัวของหัวหน้าพยาบาล (ปุ่มสีเทา/เขียวในเมนูจัดการ)
     async function updateMyOwnConstraintStatus() {
         try {
-            const res = await fetch(`${API_URL}/api/my-constraint-status`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
+            const res = await apiRequest(`${API_URL}/api/my-constraint-status`);
             const data = await res.json();
             const statusEl = document.getElementById('my-constraint-status');
             if (statusEl && data.status) {
@@ -687,16 +673,20 @@
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/change-password`, {
+            const res = await apiRequest(`${API_URL}/api/change-password`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${token}` 
-                },
                 body: JSON.stringify(payload)
             });
 
             const data = await res.json();
+            if (data.success) {
+                // ✅ ถ้า Backend ส่ง Token ใหม่มาให้ (เพราะรหัสเปลี่ยนแล้ว กุญแจเดิมจะใช้ไม่ได้ในครั้งหน้า)
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
+                
+                Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว', 'success');
+            }
 
             if (data.success) {
                 // ✅ 2. แจ้งเตือนเมื่อสำเร็จ

@@ -196,9 +196,7 @@
 
         async function checkSystemStatus() {
             try {
-                const res = await fetch(`${API_URL}/api/check-constraint-window`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
+                const res = await apiRequest(`${API_URL}/api/check-constraint-window`);
                 const data = await res.json();
                 
                 // ถ้าระบบ "ปิด" (isOpen = false) -> ดีดออกทันที
@@ -228,10 +226,7 @@
             try {
                 if (loadingOverlay) loadingOverlay.classList.remove('hidden'); 
                 
-                const res = await fetch(`${API_URL}/api/get-my-constraints?period=${period}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-
+                const res = await apiRequest(`${API_URL}/api/get-my-constraints?period=${period}`);
                 if (!res.ok) throw new Error('ไม่สามารถดึงข้อมูลได้');
                 const response = await res.json();
 
@@ -328,9 +323,8 @@
                 saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
                 saveBtn.disabled = true;
 
-                const res = await fetch(`${API_URL}/api/set-constraints`, {
+                const res = await apiRequest(`${API_URL}/api/set-constraints`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                     body: JSON.stringify(payload)
                 });
 

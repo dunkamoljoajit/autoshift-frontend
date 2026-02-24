@@ -385,17 +385,11 @@
             grid.innerHTML = '<div class="col-span-7 py-24 text-center"><i class="fas fa-spinner fa-spin text-indigo-500 text-3xl"></i></div>';
 
             try {
-                const res = await fetch(`${API_BASE}/api/monthly-schedule`, {
+                const res = await apiRequest(`${API_BASE}/api/monthly-schedule`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // ✅ แนบ Token
-                    },
                     body: JSON.stringify({ userId: currentUser.UserID, month, year })
                 });
-
                 if (res.status === 401) { window.location.href = 'login.html'; return; } // ✅ 401 Check
-
                 const data = await res.json();
                 if(data.success) {
                     shiftsData = data.shifts;
@@ -573,12 +567,8 @@
 
             try {
                 // 3. API Call: ส่งข้อมูลไปยัง Backend
-                const res = await fetch(`${API_BASE}/api/sell-shift`, {
+                const res = await apiRequest(`${API_BASE}/api/sell-shift`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    },
                     body: JSON.stringify({
                         userId: currentUser.UserID,
                         scheduleId: scheduleId,
@@ -649,9 +639,7 @@
             select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบสถานะเวร...</option>';
 
             try {
-                const res = await fetch(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`, { 
-                    headers: {'Authorization': `Bearer ${token}`} 
-                });
+                const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`);
                 const data = await res.json();
 
                 if (data.success && data.results.length > 0) {
@@ -734,12 +722,8 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังโพสต์...'; btn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/api/posts/create`, {
+                const res = await apiRequest(`${API_BASE}/api/posts/create`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // ✅ แนบ Token
-                    },
                     body: JSON.stringify({ userId: currentUser.UserID, scheduleId: myShiftId, desiredDate, note })
                 });
 

@@ -274,13 +274,8 @@
             const token = localStorage.getItem('token');
 
             try {
-                const res = await fetch(`${API_BASE}/api/full-schedule`, {
+                const res = await apiRequest(`${API_BASE}/api/full-schedule`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    // ✅ แก้ไข: ส่ง month และ year แทน date เพียวๆ
                     body: JSON.stringify({ month: month, year: year })
                 });
 
