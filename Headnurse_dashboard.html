@@ -581,6 +581,7 @@
                 const confInp = document.getElementById('m-confirmPassword');
                 const msgBox = document.getElementById('m-matchMsg');
 
+                // ฟังก์ชัน Toggle ตา
                 window.toggleSwalPass = (id, icon) => {
                     const input = document.getElementById(id);
                     const isPass = input.type === 'password';
@@ -591,35 +592,46 @@
 
                 // ฟังก์ชันตรวจสอบรหัสผ่านเดิมกับ Backend
                 const checkOldPassword = async (password) => {
+                    if (!password) return false;
                     try {
                         const response = await fetch('/api/check-old-password', {
                             method: 'POST',
                             headers: { 
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}` // ใช้ Token ตามที่คุณตั้งค่าไว้
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
                             },
                             body: JSON.stringify({ oldPassword: password })
                         });
                         const result = await response.json();
-                        return result.valid; // คืนค่า true ถ้าถูก, false ถ้าผิด
+                        return result.valid === true; 
                     } catch (err) {
+                        console.error("Check Old Pass Error:", err);
                         return false;
                     }
                 };
+
+                // ใช้ตัวแปรควบคุมจังหวะการยิง API (Debounce)
+                let timeout = null;
 
                 const validate = async () => {
                     const oldVal = oldInp.value;
                     const newVal = newInp.value;
                     const confVal = confInp.value;
 
-                    // --- 1. ตรวจสอบรหัสผ่านเดิม (Real-time Validation) ---
-                    if (oldVal.length > 0) {
-                        const isOldCorrect = await checkOldPassword(oldVal);
-                        if (!isOldCorrect) {
-                            oldInp.style.borderColor = "#dc3545"; // สีแดงถ้าผิด
-                        } else {
-                            oldInp.style.borderColor = "#28a745"; // สีเขียวถ้าถูก
-                        }
+                    // --- 1. ตรวจสอบรหัสผ่านเดิม (เพิ่ม Logic สีขอบให้เคลียร์) ---
+                    if (oldVal.length === 0) {
+                        oldInp.style.borderColor = "#eee";
+                    } else {
+                        // หน่วงเวลา 500ms ก่อนยิง API เพื่อรอให้พิมพ์จบประโยค
+                        clearTimeout(timeout);
+                        timeout = setTimeout(async () => {
+                            const isOldCorrect = await checkOldPassword(oldVal);
+                            if (isOldCorrect) {
+                                oldInp.style.borderColor = "#28a745"; // เขียวเมื่อถูก
+                            } else {
+                                oldInp.style.borderColor = "#dc3545"; // แดงเมื่อผิด
+                            }
+                        }, 500);
                     }
 
                     // --- 2. ตรวจสอบเงื่อนไขรหัสใหม่ ---
@@ -633,6 +645,7 @@
 
                     const updateItem = (id, isValid) => {
                         const el = document.getElementById(id);
+                        if (!el) return;
                         const icon = el.querySelector('i');
                         if (isValid) {
                             el.classList.add('valid');
@@ -649,12 +662,13 @@
                     updateItem('m-num', checks.num);
                     updateItem('m-spc', checks.spc);
 
-                    // --- 3. ตรวจสอบรหัสใหม่ซ้ำกับรหัสเดิม ---
+                    // --- 3. ตรวจสอบรหัสใหม่ซ้ำกับรหัสเดิม และการ Match ---
                     if (newVal !== "" && newVal === oldVal) {
                         newInp.style.borderColor = "#dc3545";
                         msgBox.innerHTML = '<span class="m-text-danger"><i class="fas fa-exclamation-triangle"></i> รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม</span>';
                     } else {
-                        // เช็คการ Match
+                        newInp.style.borderColor = checks.len ? "#28a745" : "#eee";
+                        
                         if (confVal === "") {
                             msgBox.innerHTML = "";
                             confInp.style.borderColor = "#eee";
