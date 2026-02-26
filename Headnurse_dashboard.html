@@ -284,15 +284,32 @@
     const API_URL = (typeof API_BASE !== 'undefined') ? API_BASE : 'https://autoshift-backend.onrender.com';
     
     // --- 1. เริ่มการทำงานเมื่อโหลดหน้าจอ ---
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        // ขั้นตอนที่ 0: ตรวจสอบสิทธิ์ทันที (ไม่ต้องรอ)
         checkHeadNurseRole();
         setupCalendar();
-        loadAllData();
-        updateConstraintStatus();
-        fetchPendingCounts();
-        updateMyOwnConstraintStatus(); // ดึงสถานะของหัวหน้าเอง
 
-        // ตั้งค่า Event Listener สำหรับฟอร์มบันทึก Quota
+        // ขั้นตอนที่ 1: ปล่อยให้ Header (components.js) ทำงานไปก่อนประมาณ 500ms 
+        // เพื่อดึงรูปโปรไฟล์และจำนวนการแจ้งเตือน (Badge Count) ให้เสร็จ
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // ขั้นตอนที่ 2: ทยอยโหลดข้อมูล Dashboard (แบ่งกลุ่มเพื่อลดโหลดของ Server)
+        try {
+            // โหลดข้อมูลหลัก (Quota และสถานะเปิด/ปิด)
+            await loadAllData(); 
+            
+            // หน่วงเวลาเล็กน้อยก่อนดึงสถิติอื่นๆ
+            setTimeout(() => {
+                updateConstraintStatus();        // ความคืบหน้าการส่งข้อจำกัด
+                fetchPendingCounts();           // ยอดรออนุมัติแลกเวร/ซื้อขาย
+                updateMyOwnConstraintStatus();   // สถานะส่วนตัวของหัวหน้า
+            }, 300);
+
+        } catch (err) {
+            console.error("Dashboard Initial Load Error:", err);
+        }
+
+        // ขั้นตอนที่ 3: ตั้งค่า Event Listener สำหรับฟอร์ม
         const settingsForm = document.getElementById('scheduleSettingsForm');
         if(settingsForm) {
             settingsForm.addEventListener('submit', saveSettings);

@@ -200,21 +200,35 @@ class AppHeader extends HTMLElement {
     }
 
     async fetchBadgeCount(user) {
+        // หน่วงเวลา 1.5 วินาทีเพื่อให้ API หลักของ Dashboard ทำงานเสร็จก่อน
+        await new Promise(r => setTimeout(r, 1500)); 
+
         try {
             const token = localStorage.getItem('token');
             const isHead = user.RoleID === 1;
             const endpoint = isHead ? '/api/admin/pending-counts' : `/api/notifications/unread-count/${user.UserID}`;
-            const res = await fetch(`${API_BASE}${endpoint}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            
+            const res = await fetch(`${API_BASE}${endpoint}`, { 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
+
+            // ตรวจสอบว่า Response โอเคไหม ถ้าไม่โอเค (เช่น 520) ให้เด้งไป catch
+            if (!res.ok) throw new Error("Server Busy");
+
             const data = await res.json();
             if (data.success) {
                 const badge = this.querySelector('#unread-count');
                 const count = isHead ? (data.total || 0) : (data.count || 0);
-                if (badge && count > 0) {
+                if (badge) {
                     badge.innerText = count > 99 ? '99+' : count;
-                    badge.classList.remove('hidden');
+                    count > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
                 }
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error("Badge Fetch Error, Retrying in 3s...", err);
+            // ถ้าพลาด ให้ลองใหม่ในอีก 3 วินาที (แบบ Recursive)
+            setTimeout(() => this.fetchBadgeCount(user), 3000); 
+        }
     }
 
     setupProfileLogic(user) {
