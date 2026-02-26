@@ -151,192 +151,164 @@
         </div>
     </div>
 
-    <script>
-        // Check User Role
-        document.addEventListener('DOMContentLoaded', () => {
-            const userStr = localStorage.getItem('user');
-            if (!userStr) { window.location.href = 'index.html'; return; }
-            const user = JSON.parse(userStr);
-            if (user.RoleID !== 1) {
-                Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์เข้าถึง', showConfirmButton: false, timer: 2000 }).then(() => {
-                    window.location.href = 'dashboard.html';
-                });
-            }
+   <script>
+    // Check User Role & API Base
+    document.addEventListener('DOMContentLoaded', () => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) { window.location.href = 'index.html'; return; }
+        const user = JSON.parse(userStr);
+        if (user.RoleID !== 1) {
+            Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์เข้าถึง', showConfirmButton: false, timer: 2000 }).then(() => {
+                window.location.href = 'dashboard.html';
+            });
+        }
+    });
+
+    // ----------------------------------------
+    // ฟังก์ชัน Upload Excel
+    // ----------------------------------------
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const dropZone = document.getElementById('drop-zone');
+
+    fileInput.addEventListener('change', (e) => {
+        if(e.target.files.length > 0) {
+            fileNameDisplay.textContent = `ไฟล์ที่เลือก: ${e.target.files[0].name}`;
+            fileNameDisplay.classList.remove('hidden');
+            dropZone.classList.add('border-indigo-500', 'bg-indigo-100');
+        }
+    });
+
+    async function uploadFile() {
+        const files = fileInput.files;
+        if (files.length === 0) { 
+            return Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกไฟล์ Excel ก่อนครับ' }); 
+        }
+
+        const formData = new FormData();
+        formData.append('file', files[0]);
+
+        Swal.fire({ 
+            title: 'กำลังประมวลผล...', 
+            text: 'ระบบกำลังนำเข้าข้อมูลพยาบาล โปรดรอสักครู่',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading() 
         });
 
-        // ----------------------------------------
-        // ฟังก์ชัน Upload Excel
-        // ----------------------------------------
-        const fileInput = document.getElementById('fileInput');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        const dropZone = document.getElementById('drop-zone');
-
-        fileInput.addEventListener('change', (e) => {
-            if(e.target.files.length > 0) {
-                fileNameDisplay.textContent = `ไฟล์ที่เลือก: ${e.target.files[0].name}`;
-                fileNameDisplay.classList.remove('hidden');
-                dropZone.classList.add('border-indigo-500', 'bg-indigo-100');
-            }
-        });
-
-        async function uploadFile() {
-            const files = fileInput.files;
-            if (files.length === 0) { 
-                return Swal.fire({
-                    icon: 'warning',
-                    title: 'แจ้งเตือน',
-                    text: 'กรุณาเลือกไฟล์ Excel ก่อนครับ',
-                    confirmButtonColor: '#191970'
-                }); 
-            }
-
-            const formData = new FormData();
-            formData.append('file', files[0]);
-
-            // แสดง Loading ระหว่างประมวลผล
-            Swal.fire({ 
-                title: 'กำลังประมวลผล...', 
-                text: 'ระบบกำลังนำเข้าข้อมูลพยาบาล โปรดรอสักครู่',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading() 
+        try {
+            const token = localStorage.getItem('token');
+            
+            // ✅ ใช้ API_BASE จาก components.js และ Backtick (`) เพื่อป้องกัน Error 404
+            const res = await fetch(`${API_BASE}/api/admin/import-users`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
             });
 
-            try {
-                const token = localStorage.getItem('token') || localStorage.getItem('Token');
-                
-                // ยิง API ไปยัง Backend ที่กำหนดไว้ใน API_BASE
-                const res = await fetch(`${API_BASE}/api/admin/import-users`, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${token}` 
-                        // หมายเหตุ: ไม่ต้องใส่ Content-Type สำหรับ FormData ระบบจะจัดการ boundary ให้เอง
-                    },
-                    body: formData
-                });
-
-                const data = await res.json();
-                
-                if (res.ok && data.success) {
-                    // 1. ปิด Loading
-                    Swal.close();
-
-                    // 2. เรียกฟังก์ชันแสดงรายละเอียด (สถิติและรายการ Error ถ้ามี)
-                    displayResult(data);
-
-                    // 3. แสดงแจ้งเตือนความสำเร็จโดยใช้ข้อความตรงจาก Backend
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'นำเข้าข้อมูลเรียบร้อย', 
-                        text: data.message || 'บันทึกข้อมูลพยาบาลลงระบบสำเร็จ', 
-                        confirmButtonColor: '#28a745',
-                        timer: 3000,
-                        timerProgressBar: true
-                    });
-
-                    // 4. เคลียร์ไฟล์ออกจาก Input หลังทำรายการสำเร็จ
-                    fileInput.value = '';
-                    if (typeof fileNameDisplay !== 'undefined') fileNameDisplay.classList.add('hidden');
-                    if (typeof dropZone !== 'undefined') dropZone.classList.remove('border-indigo-500', 'bg-indigo-100');
-
-                } else { 
-                    // กรณี Backend ส่ง success: false หรือมีข้อความ Error เฉพาะเจาะจง
-                    throw new Error(data.message || 'ไม่สามารถนำเข้าข้อมูลได้ในขณะนี้'); 
-                }
-
-            } catch (err) {
-                console.error("Upload Error:", err);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'เกิดข้อผิดพลาด',
-                    text: err.message,
-                    confirmButtonColor: '#dc3545'
-                });
-            }
-        }
-
-        function displayResult(data) {
-            const area = document.getElementById('result-area');
-            if (!area) return;
-
-            // ตรวจสอบโครงสร้างข้อมูลก่อนนำไปใส่ใน UI
-            // ถ้า Backend ส่ง summary มาให้ใช้ตามนั้น ถ้าไม่มีให้ใช้ค่าเริ่มต้นเป็น 0 หรือ "-"
-            const total = data.summary?.total ?? (data.successCount ?? "-");
-            const success = data.summary?.success ?? (data.successCount ?? "-");
-            const failed = data.summary?.failed ?? 0;
-
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-success').innerText = success;
-            document.getElementById('stat-failed').innerText = failed;
+            const data = await res.json();
             
-            // แสดงเวลาที่ทำรายการล่าสุด
-            document.getElementById('timestamp-display').innerText = new Date().toLocaleString('th-TH');
-
-            const list = document.getElementById('error-list');
-            const errorContainer = document.getElementById('error-list-container');
-            
-            if (list) {
-                list.innerHTML = '';
-                // ตรวจสอบว่ามีรายการข้อผิดพลาดส่งกลับมาหรือไม่
-                if (data.errors && data.errors.length > 0) {
-                    if (errorContainer) errorContainer.classList.remove('hidden');
-                    data.errors.forEach(err => {
-                        list.innerHTML += `
-                            <li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2 transition-colors">
-                                <i class="fas fa-times-circle text-red-400 mt-0.5"></i> 
-                                <span class="text-slate-600">${err}</span>
-                            </li>`;
-                    });
-                } else {
-                    if (errorContainer) errorContainer.classList.add('hidden');
-                }
-            }
-
-            // แสดงพื้นที่ผลลัพธ์และเลื่อนหน้าจอลงมาให้เห็น
-            area.classList.remove('hidden');
-            area.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        // ----------------------------------------
-        // ฟังก์ชัน Manual Add User
-        // ----------------------------------------
-        const modal = document.getElementById('addUserModal');
-        function openAddModal() { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-        function closeAddModal() { 
-            modal.classList.add('hidden'); modal.classList.remove('flex'); 
-            document.getElementById('input-email').value = '';
-            document.getElementById('input-firstname').value = '';
-            document.getElementById('input-lastname').value = '';
-        }
-
-        async function submitSingleUser() {
-            const email = document.getElementById('input-email').value.trim();
-            const firstName = document.getElementById('input-firstname').value.trim();
-            const lastName = document.getElementById('input-lastname').value.trim();
-            const roleId = document.getElementById('input-role').value;
-
-            if (!email || !firstName) { return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกอีเมลและชื่อจริง', 'warning'); }
-
-            Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
-
-            try {
-                const token = localStorage.getItem('token') || localStorage.getItem('token');
-                // เรียกใช้ API_BASE จาก components.js
-                const res = await fetch(`${API_BASE}/api/admin/add-user`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ email, firstName, lastName, roleId })
+            if (res.ok && data.success) {
+                Swal.close();
+                displayResult(data); // เรียกโชว์สถิติด้านล่าง
+                
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: 'สำเร็จ', 
+                    text: data.message || 'นำเข้าข้อมูลเรียบร้อยแล้ว', 
+                    timer: 3000 
                 });
-                const data = await res.json();
 
-                if (res.ok && data.success) {
-                    closeAddModal();
-                    Swal.fire({ icon: 'success', title: 'สำเร็จ', html: `เพิ่มคุณ <b>${firstName}</b> เรียบร้อย`, timer: 3000 });
-                } else { throw new Error(data.message || 'Server Error'); }
-            } catch (err) {
-                console.error("Add User Error:", err);
-                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+                // ล้างค่าไฟล์หลังสำเร็จ
+                fileInput.value = '';
+                fileNameDisplay.classList.add('hidden');
+                dropZone.classList.remove('border-indigo-500', 'bg-indigo-100');
+
+            } else { 
+                throw new Error(data.message || 'เกิดข้อผิดพลาดในการนำเข้า'); 
             }
+        } catch (err) {
+            console.error("Upload Error:", err);
+            Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
         }
-    </script>
+    }
+
+    function displayResult(data) {
+        const area = document.getElementById('result-area');
+        if (!area) return;
+
+        // ✅ ปรับ Logic การดึงตัวเลขให้ยืดหยุ่น (ใช้ค่าจาก Backend หรือค่าเริ่มต้น)
+        const total = data.summary?.total || "-";
+        const success = data.summary?.success || "-";
+        const failed = data.summary?.failed || 0;
+
+        document.getElementById('stat-total').innerText = total;
+        document.getElementById('stat-success').innerText = success;
+        document.getElementById('stat-failed').innerText = failed;
+        document.getElementById('timestamp-display').innerText = new Date().toLocaleString('th-TH');
+
+        const list = document.getElementById('error-list');
+        const errorContainer = document.getElementById('error-list-container');
+        
+        list.innerHTML = '';
+        // ✅ ตรวจสอบ Errors array
+        if (data.errors && data.errors.length > 0) {
+            errorContainer.classList.remove('hidden');
+            data.errors.forEach(err => {
+                list.innerHTML += `<li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2 text-red-600"><i class="fas fa-times-circle mt-0.5"></i> <span>${err}</span></li>`;
+            });
+        } else { 
+            errorContainer.classList.add('hidden'); 
+        }
+
+        area.classList.remove('hidden');
+        area.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ----------------------------------------
+    // ฟังก์ชัน Manual Add User
+    // ----------------------------------------
+    const modal = document.getElementById('addUserModal');
+    function openAddModal() { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    function closeAddModal() { 
+        modal.classList.add('hidden'); modal.classList.remove('flex'); 
+        document.getElementById('input-email').value = '';
+        document.getElementById('input-firstname').value = '';
+        document.getElementById('input-lastname').value = '';
+    }
+
+    async function submitSingleUser() {
+        const email = document.getElementById('input-email').value.trim();
+        const firstName = document.getElementById('input-firstname').value.trim();
+        const lastName = document.getElementById('input-lastname').value.trim();
+        const roleId = document.getElementById('input-role').value;
+
+        if (!email || !firstName) { return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกอีเมลและชื่อจริง', 'warning'); }
+
+        Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE}/api/admin/add-user`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ email, firstName, lastName, roleId })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                closeAddModal();
+                Swal.fire({ icon: 'success', title: 'สำเร็จ', html: `เพิ่มคุณ <b>${firstName}</b> เรียบร้อย`, timer: 3000 });
+            } else { 
+                throw new Error(data.message || 'บันทึกข้อมูลไม่สำเร็จ'); 
+            }
+        } catch (err) {
+            console.error("Add User Error:", err);
+            Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+        }
+    }
+</script>
 </body>
 </html>
