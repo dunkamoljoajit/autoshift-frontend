@@ -575,7 +575,7 @@
                     <div id="m-matchMsg" style="text-align: left; margin-left: 15px; height: 20px; margin-bottom: 10px;"></div>
                 </div>
             `,
-            didOpen: () => {
+           didOpen: () => {
                 const oldInp = document.getElementById('m-oldPassword');
                 const newInp = document.getElementById('m-newPassword');
                 const confInp = document.getElementById('m-confirmPassword');
@@ -594,11 +594,19 @@
                 const checkOldPassword = async (password) => {
                     if (!password) return false;
                     try {
-                        const res = await apiRequest(`${API_BASE}/api/check-old-password`, {
+                        // ใช้ apiRequest หรือ fetch โดยใช้ Backtick (`) เพื่อให้ดึงตัวแปร API_BASE ได้
+                        const res = await fetch(`${API_URL}/api/check-old-password`, {
                             method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
                             body: JSON.stringify({ oldPassword: password })
                         });
-                        const result = await response.json();
+
+                        if (!res.ok) return false;
+
+                        const result = await res.json(); // แก้จาก response เป็น res ให้ตรงกับข้างบน
                         return result.valid === true; 
                     } catch (err) {
                         console.error("Check Old Pass Error:", err);
@@ -606,7 +614,7 @@
                     }
                 };
 
-                // ใช้ตัวแปรควบคุมจังหวะการยิง API (Debounce)
+                // ตัวแปรควบคุมจังหวะการยิง API
                 let timeout = null;
 
                 const validate = async () => {
@@ -614,11 +622,10 @@
                     const newVal = newInp.value;
                     const confVal = confInp.value;
 
-                    // --- 1. ตรวจสอบรหัสผ่านเดิม (เพิ่ม Logic สีขอบให้เคลียร์) ---
+                    // --- 1. ตรวจสอบรหัสผ่านเดิม ---
                     if (oldVal.length === 0) {
                         oldInp.style.borderColor = "#eee";
                     } else {
-                        // หน่วงเวลา 500ms ก่อนยิง API เพื่อรอให้พิมพ์จบประโยค
                         clearTimeout(timeout);
                         timeout = setTimeout(async () => {
                             const isOldCorrect = await checkOldPassword(oldVal);
