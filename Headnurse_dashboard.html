@@ -581,7 +581,6 @@
                 const confInp = document.getElementById('m-confirmPassword');
                 const msgBox = document.getElementById('m-matchMsg');
 
-                // ฟังก์ชัน Toggle ตา
                 window.toggleSwalPass = (id, icon) => {
                     const input = document.getElementById(id);
                     const isPass = input.type === 'password';
@@ -590,15 +589,46 @@
                     icon.classList.toggle('fa-eye-slash');
                 };
 
-                // Logic ตรวจสอบ Real-time (ยกมาจากหน้าที่คุณส่งมา)
-                const validate = () => {
-                    const val = newInp.value;
+                // ฟังก์ชันตรวจสอบรหัสผ่านเดิมกับ Backend
+                const checkOldPassword = async (password) => {
+                    try {
+                        const response = await fetch('/api/check-old-password', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}` // ใช้ Token ตามที่คุณตั้งค่าไว้
+                            },
+                            body: JSON.stringify({ oldPassword: password })
+                        });
+                        const result = await response.json();
+                        return result.valid; // คืนค่า true ถ้าถูก, false ถ้าผิด
+                    } catch (err) {
+                        return false;
+                    }
+                };
+
+                const validate = async () => {
+                    const oldVal = oldInp.value;
+                    const newVal = newInp.value;
+                    const confVal = confInp.value;
+
+                    // --- 1. ตรวจสอบรหัสผ่านเดิม (Real-time Validation) ---
+                    if (oldVal.length > 0) {
+                        const isOldCorrect = await checkOldPassword(oldVal);
+                        if (!isOldCorrect) {
+                            oldInp.style.borderColor = "#dc3545"; // สีแดงถ้าผิด
+                        } else {
+                            oldInp.style.borderColor = "#28a745"; // สีเขียวถ้าถูก
+                        }
+                    }
+
+                    // --- 2. ตรวจสอบเงื่อนไขรหัสใหม่ ---
                     const checks = {
-                        len: val.length >= 8,
-                        up: /[A-Z]/.test(val),
-                        lo: /[a-z]/.test(val),
-                        num: /[0-9]/.test(val),
-                        spc: /[!@#\$%\^&\*\.]/.test(val)
+                        len: newVal.length >= 8,
+                        up: /[A-Z]/.test(newVal),
+                        lo: /[a-z]/.test(newVal),
+                        num: /[0-9]/.test(newVal),
+                        spc: /[!@#\$%\^&\*\.]/.test(newVal)
                     };
 
                     const updateItem = (id, isValid) => {
@@ -619,20 +649,26 @@
                     updateItem('m-num', checks.num);
                     updateItem('m-spc', checks.spc);
 
-                    // เช็ค Match
-                    const conf = confInp.value;
-                    if (conf === "") {
-                        msgBox.innerHTML = "";
-                        confInp.style.borderColor = "#eee";
-                    } else if (val === conf) {
-                        msgBox.innerHTML = '<span class="m-text-success"><i class="fas fa-check"></i> รหัสผ่านตรงกัน</span>';
-                        confInp.style.borderColor = "#28a745";
+                    // --- 3. ตรวจสอบรหัสใหม่ซ้ำกับรหัสเดิม ---
+                    if (newVal !== "" && newVal === oldVal) {
+                        newInp.style.borderColor = "#dc3545";
+                        msgBox.innerHTML = '<span class="m-text-danger"><i class="fas fa-exclamation-triangle"></i> รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม</span>';
                     } else {
-                        msgBox.innerHTML = '<span class="m-text-danger"><i class="fas fa-times"></i> รหัสผ่านไม่ตรงกัน</span>';
-                        confInp.style.borderColor = "#dc3545";
+                        // เช็คการ Match
+                        if (confVal === "") {
+                            msgBox.innerHTML = "";
+                            confInp.style.borderColor = "#eee";
+                        } else if (newVal === confVal) {
+                            msgBox.innerHTML = '<span class="m-text-success"><i class="fas fa-check"></i> รหัสผ่านตรงกัน</span>';
+                            confInp.style.borderColor = "#28a745";
+                        } else {
+                            msgBox.innerHTML = '<span class="m-text-danger"><i class="fas fa-times"></i> รหัสผ่านไม่ตรงกัน</span>';
+                            confInp.style.borderColor = "#dc3545";
+                        }
                     }
                 };
 
+                oldInp.addEventListener('input', validate);
                 newInp.addEventListener('input', validate);
                 confInp.addEventListener('input', validate);
             },
