@@ -594,12 +594,8 @@
                 const checkOldPassword = async (password) => {
                     if (!password) return false;
                     try {
-                        const response = await fetch('${API_URL}/api/check-old-password', {
+                        const res = await apiRequest(`${API_BASE}/api/check-old-password`, {
                             method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                            },
                             body: JSON.stringify({ oldPassword: password })
                         });
                         const result = await response.json();
