@@ -236,25 +236,36 @@
         const area = document.getElementById('result-area');
         if (!area) return;
 
-        // ✅ ปรับ Logic การดึงตัวเลขให้ยืดหยุ่น (ใช้ค่าจาก Backend หรือค่าเริ่มต้น)
-        const total = data.summary?.total || "-";
-        const success = data.summary?.success || "-";
-        const failed = data.summary?.failed || 0;
+        // --- ส่วนคำนวณสถิติแบบดึงเลขจากข้อความ ---
+        let successCount = 0;
+        if (data.message) {
+            // ดึงตัวเลขแรกที่เจอในข้อความ "นำเข้าสำเร็จ X ท่าน"
+            const match = data.message.match(/\d+/);
+            successCount = match ? parseInt(match[0]) : 0;
+        }
 
-        document.getElementById('stat-total').innerText = total;
-        document.getElementById('stat-success').innerText = success;
-        document.getElementById('stat-failed').innerText = failed;
-        document.getElementById('timestamp-display').innerText = new Date().toLocaleString('th-TH');
+        // นับจำนวนรายการที่ล้มเหลวจาก array errors
+        const errorCount = (data.errors && Array.isArray(data.errors)) ? data.errors.length : 0;
+        const totalCount = successCount + errorCount;
+
+        // อัปเดตตัวเลขเข้า UI
+        document.getElementById('stat-total').innerText = totalCount;
+        document.getElementById('stat-success').innerText = successCount;
+        document.getElementById('stat-failed').innerText = errorCount;
+        document.getElementById('timestamp-display').innerText = `ล่าสุดเมื่อ: ${new Date().toLocaleTimeString('th-TH')} น.`;
 
         const list = document.getElementById('error-list');
         const errorContainer = document.getElementById('error-list-container');
         
         list.innerHTML = '';
-        // ✅ ตรวจสอบ Errors array
-        if (data.errors && data.errors.length > 0) {
+        if (errorCount > 0) {
             errorContainer.classList.remove('hidden');
             data.errors.forEach(err => {
-                list.innerHTML += `<li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2 text-red-600"><i class="fas fa-times-circle mt-0.5"></i> <span>${err}</span></li>`;
+                list.innerHTML += `
+                    <li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2 text-red-600">
+                        <i class="fas fa-times-circle mt-0.5"></i> 
+                        <span>${err}</span>
+                    </li>`;
             });
         } else { 
             errorContainer.classList.add('hidden'); 
