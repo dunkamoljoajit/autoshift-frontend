@@ -181,51 +181,119 @@
 
         async function uploadFile() {
             const files = fileInput.files;
-            if (files.length === 0) { return Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์ Excel ก่อนครับ', 'warning'); }
+            if (files.length === 0) { 
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'แจ้งเตือน',
+                    text: 'กรุณาเลือกไฟล์ Excel ก่อนครับ',
+                    confirmButtonColor: '#191970'
+                }); 
+            }
 
             const formData = new FormData();
             formData.append('file', files[0]);
 
-            Swal.fire({ title: 'กำลังประมวลผล...', didOpen: () => Swal.showLoading() });
+            // แสดง Loading ระหว่างประมวลผล
+            Swal.fire({ 
+                title: 'กำลังประมวลผล...', 
+                text: 'ระบบกำลังนำเข้าข้อมูลพยาบาล โปรดรอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading() 
+            });
 
             try {
                 const token = localStorage.getItem('token') || localStorage.getItem('Token');
-                // เรียกใช้ API_BASE จาก components.js ได้เลย
+                
+                // ยิง API ไปยัง Backend ที่กำหนดไว้ใน API_BASE
                 const res = await fetch(`${API_BASE}/api/admin/import-users`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Authorization': `Bearer ${token}` 
+                        // หมายเหตุ: ไม่ต้องใส่ Content-Type สำหรับ FormData ระบบจะจัดการ boundary ให้เอง
+                    },
                     body: formData
                 });
+
                 const data = await res.json();
                 
                 if (res.ok && data.success) {
+                    // 1. ปิด Loading
                     Swal.close();
+
+                    // 2. เรียกฟังก์ชันแสดงรายละเอียด (สถิติและรายการ Error ถ้ามี)
                     displayResult(data);
-                    Swal.fire({ icon: 'success', title: 'เสร็จสิ้น', text: data.message, timer: 2000 });
-                } else { throw new Error(data.message || 'Server Error'); }
+
+                    // 3. แสดงแจ้งเตือนความสำเร็จโดยใช้ข้อความตรงจาก Backend
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'นำเข้าข้อมูลเรียบร้อย', 
+                        text: data.message || 'บันทึกข้อมูลพยาบาลลงระบบสำเร็จ', 
+                        confirmButtonColor: '#28a745',
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+
+                    // 4. เคลียร์ไฟล์ออกจาก Input หลังทำรายการสำเร็จ
+                    fileInput.value = '';
+                    if (typeof fileNameDisplay !== 'undefined') fileNameDisplay.classList.add('hidden');
+                    if (typeof dropZone !== 'undefined') dropZone.classList.remove('border-indigo-500', 'bg-indigo-100');
+
+                } else { 
+                    // กรณี Backend ส่ง success: false หรือมีข้อความ Error เฉพาะเจาะจง
+                    throw new Error(data.message || 'ไม่สามารถนำเข้าข้อมูลได้ในขณะนี้'); 
+                }
+
             } catch (err) {
                 console.error("Upload Error:", err);
-                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: err.message,
+                    confirmButtonColor: '#dc3545'
+                });
             }
         }
 
         function displayResult(data) {
             const area = document.getElementById('result-area');
-            document.getElementById('stat-total').innerText = data.summary.total;
-            document.getElementById('stat-success').innerText = data.summary.success;
-            document.getElementById('stat-failed').innerText = data.summary.failed;
+            if (!area) return;
+
+            // ตรวจสอบโครงสร้างข้อมูลก่อนนำไปใส่ใน UI
+            // ถ้า Backend ส่ง summary มาให้ใช้ตามนั้น ถ้าไม่มีให้ใช้ค่าเริ่มต้นเป็น 0 หรือ "-"
+            const total = data.summary?.total ?? (data.successCount ?? "-");
+            const success = data.summary?.success ?? (data.successCount ?? "-");
+            const failed = data.summary?.failed ?? 0;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-success').innerText = success;
+            document.getElementById('stat-failed').innerText = failed;
+            
+            // แสดงเวลาที่ทำรายการล่าสุด
             document.getElementById('timestamp-display').innerText = new Date().toLocaleString('th-TH');
 
             const list = document.getElementById('error-list');
-            list.innerHTML = '';
-            if (data.errors.length > 0) {
-                document.getElementById('error-list-container').classList.remove('hidden');
-                data.errors.forEach(err => {
-                    list.innerHTML += `<li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2"><i class="fas fa-times-circle text-red-400 mt-0.5"></i> <span>${err}</span></li>`;
-                });
-            } else { document.getElementById('error-list-container').classList.add('hidden'); }
+            const errorContainer = document.getElementById('error-list-container');
+            
+            if (list) {
+                list.innerHTML = '';
+                // ตรวจสอบว่ามีรายการข้อผิดพลาดส่งกลับมาหรือไม่
+                if (data.errors && data.errors.length > 0) {
+                    if (errorContainer) errorContainer.classList.remove('hidden');
+                    data.errors.forEach(err => {
+                        list.innerHTML += `
+                            <li class="px-6 py-3 hover:bg-red-50 flex items-start gap-2 transition-colors">
+                                <i class="fas fa-times-circle text-red-400 mt-0.5"></i> 
+                                <span class="text-slate-600">${err}</span>
+                            </li>`;
+                    });
+                } else {
+                    if (errorContainer) errorContainer.classList.add('hidden');
+                }
+            }
+
+            // แสดงพื้นที่ผลลัพธ์และเลื่อนหน้าจอลงมาให้เห็น
             area.classList.remove('hidden');
-            area.scrollIntoView({ behavior: 'smooth' });
+            area.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // ----------------------------------------
