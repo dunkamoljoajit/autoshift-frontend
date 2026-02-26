@@ -171,24 +171,38 @@ class AppHeader extends HTMLElement {
 
     async loadNotificationsInDropdown(user, container) {
         try {
-            const res = await apiRequest(`${API_BASE}/api/notifications/all/${user.UserID}`);
+            // --- ขั้นตอนที่ 1: พยายามดึงข้อมูลครั้งแรก ---
+            let res = await apiRequest(`${API_BASE}/api/notifications/all/${user.UserID}`);
+            
+            // --- ขั้นตอนที่ 2: ถ้า Server ยุ่ง (เช่น Error 520) ให้รอ 1 วินาทีแล้วลองใหม่ 1 ครั้ง ---
+            if (!res.ok) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                res = await apiRequest(`${API_BASE}/api/notifications/all/${user.UserID}`);
+            }
+
             const data = await res.json();
             container.innerHTML = ""; 
+
             if (!data.success || data.notifications.length === 0) {
                 container.innerHTML = `<div class="p-10 text-center text-slate-400 text-xs">ไม่มีการแจ้งเตือนใหม่</div>`;
                 return;
             }
+
+            // แสดงรายการแจ้งเตือน 5 รายการล่าสุด
             data.notifications.slice(0, 5).forEach(noti => {
                 const timeAgo = moment(noti.created_at).fromNow();
                 const isSystem = noti.type === 'system';
                 const iconBg = isSystem ? 'bg-blue-50 text-blue-500' : 'bg-orange-50 text-orange-500';
+                
                 container.innerHTML += `
                 <div class="px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors" onclick="window.location.href='notifications.html'">
                     <div class="flex gap-3 items-start">
-                        <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]"><i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i></div>
+                        <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center shrink-0 text-[10px]">
+                            <i class="fas ${isSystem ? 'fa-check' : 'fa-exchange-alt'}"></i>
+                        </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-center gap-2">
-                                <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? 'ระบบ' : noti.FirstName}</h4>
+                                <h4 class="text-xs font-bold text-slate-800 truncate">${isSystem ? 'ระบบ' : (noti.FirstName || 'แจ้งเตือน')}</h4>
                                 <span class="text-[9px] text-slate-400 whitespace-nowrap">${timeAgo}</span>
                             </div>
                             <p class="text-[10px] text-slate-500 truncate mt-0.5 font-light">${noti.info}</p>
@@ -196,9 +210,20 @@ class AppHeader extends HTMLElement {
                     </div>
                 </div>`;
             });
-        } catch (err) { container.innerHTML = '<div class="p-4 text-center text-xs text-red-400">เกิดข้อผิดพลาด</div>'; }
-    }
 
+        } catch (err) { 
+            console.error("Notification Dropdown Error:", err);
+            // --- ขั้นตอนที่ 3: เปลี่ยนข้อความ Error ให้ซอฟต์ลง และเพิ่มปุ่มลองใหม่ ---
+            container.innerHTML = `
+                <div class="p-8 text-center">
+                    <i class="fas fa-cloud-sun text-slate-200 text-2xl mb-2"></i>
+                    <p class="text-[10px] text-slate-400">การเชื่อมต่อขัดข้องชั่วคราว</p>
+                    <button onclick="location.reload()" class="mt-2 text-[10px] text-indigo-500 font-bold hover:underline">
+                        คลิกเพื่อลองใหม่
+                    </button>
+                </div>`;
+        }
+    }
     async fetchBadgeCount(user) {
         // หน่วงเวลา 1.5 วินาทีเพื่อให้ API หลักของ Dashboard ทำงานเสร็จก่อน
         await new Promise(r => setTimeout(r, 1500)); 
