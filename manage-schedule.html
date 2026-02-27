@@ -304,16 +304,67 @@
         function closeNurseModal() {
             document.getElementById('nurse-modal').classList.add('hidden');
         }
+        async function checkFatigueRisk(userId) {
+            const res = await apiRequest(
+                `${API_URL}/api/admin/fatigue-check?userId=${userId}&date=${currentTargetDate}&shiftId=${currentTargetShift}`
+            );
+            return await res.json();
+        }
 
         async function submitManualAdd() {
             const userId = document.getElementById('nurse-select').value;
-            if(!userId) return;
-            const token = localStorage.getItem('token');
+            if (!userId) return;
+
+            // 🔎 เช็คความล้าก่อน
+            const fatigue = await checkFatigueRisk(userId);
+
+            // 🔴 ความเสี่ยงสูง
+            if (fatigue.riskLevel === "HIGH") {
+                const confirm = await Swal.fire({
+                    icon: 'warning',
+                    title: '⚠ ความเสี่ยงความเหนื่อยล้าสูง',
+                    html: `
+                        <div style="text-align:left">
+                            <p>• ชั่วโมงสะสม 7 วัน: <b>${fatigue.totalHours}</b> ชม.</p>
+                            <p>• กะดึกติดกัน: <b>${fatigue.nightStreak}</b> วัน</p>
+                            <p>• เวลาพักล่าสุด: <b>${fatigue.restHours}</b> ชม.</p>
+                        </div>
+                        <br>
+                        <p>ต้องการยืนยันเพิ่มเวรฉุกเฉินหรือไม่?</p>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: "ยืนยันฉุกเฉิน",
+                    cancelButtonText: "ยกเลิก",
+                    confirmButtonColor: "#dc2626",
+                    customClass: { popup: 'rounded-[2rem]' }
+                });
+
+                if (!confirm.isConfirmed) return;
+            }
+
+            // 🟡 ความเสี่ยงปานกลาง
+            if (fatigue.riskLevel === "MODERATE") {
+                await Swal.fire({
+                    icon: 'info',
+                    title: 'แจ้งเตือน',
+                    text: 'พยาบาลมีภาระงานสะสมค่อนข้างสูง',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+
+            // 🚀 ถ้าผ่านหรือกดยืนยันแล้ว → เพิ่มเวร
             const res = await apiRequest(`${API_URL}/api/admin/add-shift-manual`, {
                 method: 'POST',
-                body: JSON.stringify({ userId, date: currentTargetDate, shiftId: currentTargetShift })
+                body: JSON.stringify({
+                    userId,
+                    date: currentTargetDate,
+                    shiftId: currentTargetShift
+                })
             });
+
             const data = await res.json();
+
             if (data.success) {
                 closeNurseModal();
                 loadDailyData();
