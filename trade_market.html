@@ -219,28 +219,32 @@
         }
 
         async function reloadData(btn) {
-            // 1. เพิ่ม Animation หมุนที่ปุ่ม (ถ้ามีการส่งตัวแปร btn มา)
-            const icon = btn ? btn.querySelector('i') : document.querySelector('button[onclick*="reloadData"] i');
+            // --- จุดที่แก้ไข: ตรวจสอบว่า btn ถูกส่งมาและเป็น Element หรือไม่ ---
+            let icon;
+            if (btn && typeof btn.querySelector === 'function') {
+                icon = btn.querySelector('i');
+            } else {
+                // ถ้าเรียก reloadData() แบบไม่ส่งค่า ให้ไปหาปุ่มรีเฟรชในหน้าจอเอง
+                const refreshBtn = document.querySelector('button[onclick*="reloadData"]');
+                if (refreshBtn) icon = refreshBtn.querySelector('i');
+            }
+            
             if (icon) icon.classList.add('fa-spin');
+            // -------------------------------------------------------
 
-            // 2. ดึงข้อมูลส่วนกลางที่ต้องอัปเดตเสมอไม่ว่าจะอยู่แท็บไหน
             const statusPromise = fetchMyStatus();
             const incomingPromise = checkIncomingRequests();
 
-            // 3. เช็คแท็บปัจจุบันเพื่อโหลดข้อมูลให้ถูกจุด
             try {
                 if (currentTab === 'market') {
-                    // ดึงข้อมูลตลาดกลาง (ใช้ค่า 'all' เป็นพื้นฐาน)
                     await fetchMarketData('all');
                 } else {
-                    // ดึงข้อมูลประกาศของฉัน
                     await fetchMyActivePosts();
                 }
                 await Promise.all([statusPromise, incomingPromise]);
             } catch (err) {
                 console.error("Refresh Error:", err);
             } finally {
-                // 4. หยุดการหมุนของไอคอน (หน่วงเวลาเล็กน้อยเพื่อให้ดูเหมือนโหลดจริง)
                 setTimeout(() => {
                     if (icon) icon.classList.remove('fa-spin');
                 }, 500);
