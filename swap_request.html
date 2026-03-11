@@ -508,21 +508,40 @@ async function openRequestModal(targetId, targetName, scheduleId) {
     document.getElementById('modal-target-user-id').value = targetId;
     document.getElementById('modal-target-schedule-id').value = scheduleId;
     const select = document.getElementById('my-offer-shift');
+    
     select.innerHTML = '<option value="" disabled selected>🔄 กำลังตรวจสอบ...</option>';
+    
     const modal = document.getElementById('requestModal');
     modal.classList.remove('hidden');
     setTimeout(() => modal.classList.remove('opacity-0'), 10);
     document.getElementById('requestModalContent').classList.replace('scale-90', 'scale-100');
+
     try {
         const token = localStorage.getItem('token');
         const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}?targetScheduleId=${scheduleId}`);
         const data = await res.json();
+
         if (data.success && data.results.length > 0) {
-            let options = '<option value="">-- เลือกเวรของคุณที่แลกแล้วปลอดภัย --</option>';
-            data.results.forEach(s => { options += `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}</option>`; });
-            select.innerHTML = options;
-        } else { select.innerHTML = `<option value="" disabled>ไม่มีเวรที่ปลอดภัย</option>`; }
-    } catch (err) { select.innerHTML = '<option value="" disabled>Error</option>'; }
+            const safeShifts = data.results.filter(s => {
+                const isBusy = s.SellingStatus === 'Open' || s.TransactionStatus || s.ExchangeStatus === 'pending';
+                return !isBusy; 
+            });
+
+            if (safeShifts.length > 0) {
+                let options = '<option value="">-- เลือกเวรของคุณที่ต้องการแลก --</option>';
+                safeShifts.forEach(s => {
+                    options += `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}</option>`;
+                });
+                select.innerHTML = options;
+            } else {
+                select.innerHTML = '<option value="" disabled>ไม่มีเวรที่สามารถแลกได้ในขณะนี้</option>';
+            }
+        } else {
+            select.innerHTML = `<option value="" disabled>ไม่พบข้อมูลเวรของคุณ</option>`;
+        }
+    } catch (err) {
+        select.innerHTML = '<option value="" disabled>เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
+    }
 }
 
 async function handleSendRequest(e) {

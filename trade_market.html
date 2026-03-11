@@ -594,15 +594,40 @@
         const overlay = document.getElementById('postModalOverlay');
         const modal = document.getElementById('postModal');
 
-        function openPostModal() {
-            overlay.classList.remove('hidden');
-            modal.classList.remove('hidden');
-            setTimeout(() => { 
-                overlay.classList.remove('opacity-0');
-                modal.classList.remove('translate-y-full', 'md:translate-y-[20%]'); 
-                modal.classList.add('md:-translate-y-1/2'); 
-            }, 10);
-            loadMySellableShifts(); 
+        async function openPostModal() {
+            const token = localStorage.getItem('token');
+            const select = document.getElementById('post-my-shift');
+            select.innerHTML = '<option value="" disabled selected>🔄 กำลังโหลด...</option>';
+            
+            document.getElementById('postModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('postModal').classList.remove('opacity-0'), 10);
+            document.getElementById('postModalContent').classList.replace('scale-90', 'scale-100');
+
+            try {
+                const res = await apiRequest(`${API_BASE}/api/schedule/my-future-shifts/${currentUser.UserID}`);
+                const data = await res.json();
+
+                if (data.success && data.results.length > 0) {
+                    // ✅ กรองออกทันที: ไม่เอาเวรที่ลงขายอยู่, ติด Transaction, หรือรอแลกอยู่
+                    const availableShifts = data.results.filter(s => {
+                        return !(s.SellingStatus === 'Open' || s.TransactionStatus || s.ExchangeStatus === 'pending');
+                    });
+
+                    if (availableShifts.length > 0) {
+                        let options = '<option value="">-- เลือกเวรของคุณที่จะปล่อย --</option>';
+                        availableShifts.forEach(s => {
+                            options += `<option value="${s.ScheduleID}">${moment(s.Nurse_Date).add(543, 'years').format('D MMM YY')} - ${s.ShiftName}</option>`;
+                        });
+                        select.innerHTML = options;
+                    } else {
+                        select.innerHTML = '<option value="" disabled>ไม่มีเวรว่างที่สามารถประกาศแลกได้</option>';
+                    }
+                } else {
+                    select.innerHTML = '<option value="" disabled>ไม่พบข้อมูลเวรในตาราง</option>';
+                }
+            } catch (e) {
+                select.innerHTML = '<option value="" disabled>Error: ไม่สามารถโหลดข้อมูลได้</option>';
+            }
         }
 
         function closePostModal() {
