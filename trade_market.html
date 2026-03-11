@@ -278,14 +278,20 @@
 
         async function fetchMarketData(filterType = 'all') {
             const token = localStorage.getItem('token');
-            if(currentTab === 'market'){
+            
+            // ปรับ UI ปุ่ม Filter
+            if (currentTab === 'market') {
                 document.querySelectorAll('.filter-btn').forEach(btn => {
                     btn.className = 'filter-btn px-4 py-2 rounded-lg bg-white text-slate-600 border border-slate-200 text-xs font-medium hover:text-indigo-600 hover:border-indigo-300 whitespace-nowrap transition-all';
                 });
+                const activeBtn = Array.from(document.querySelectorAll('.filter-btn')).find(b => b.getAttribute('onclick').includes(filterType));
+                if (activeBtn) {
+                    activeBtn.className = 'filter-btn active px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-medium shadow-md whitespace-nowrap transition-all';
+                }
             }
 
             const container = document.getElementById('marketContainer');
-            container.innerHTML = `<div class="col-span-full text-center py-12"><i class="fas fa-circle-notch fa-spin text-3xl text-indigo-300"></i><p class="mt-2 text-slate-400">กำลังโหลด...</p></div>`;
+            container.innerHTML = `<div class="col-span-full text-center py-12"><i class="fas fa-circle-notch fa-spin text-3xl text-indigo-300"></i><p class="mt-2 text-slate-400">กำลังดึงข้อมูลตลาด...</p></div>`;
             
             try {
                 const response = await fetch(`${API_BASE}/api/market/shifts?type=${filterType}&userId=${currentUserId}`, {
@@ -293,55 +299,75 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                if(response.status === 401) { window.location.href = 'login.html'; return; }
+                if (response.status === 401) { 
+                    window.location.href = 'login.html'; 
+                    return; 
+                }
 
                 const data = await response.json(); 
                 container.innerHTML = ''; 
 
-                if (data.length === 0) {
-                    container.innerHTML = `<div class="col-span-full text-center py-12 flex flex-col items-center justify-center opacity-50"><i class="fas fa-store-slash text-4xl mb-3 text-slate-300"></i><span class="text-slate-400">ตลาดว่างเปล่า</span></div>`;
+                if (!data || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full text-center py-20 flex flex-col items-center justify-center opacity-50">
+                            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-store-slash text-3xl text-slate-300"></i>
+                            </div>
+                            <span class="text-slate-400 font-medium">ไม่มีรายการขายเวรในขณะนี้</span>
+                        </div>`;
                     return;
                 }
 
                 data.forEach(shift => {
+                    // ล้างอักขระพิเศษและตัดเรื่องแผนกออก
+                    const userName = (shift.user_name || 'ไม่ระบุชื่อ').replace(/['"]/g, "");
+                    const condition = (shift.condition || 'สอบถามเพิ่มเติม').replace(/['"]/g, "");
+                    
                     const badgeClass = shift.is_urgent ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
-                    const badgeIcon = shift.is_urgent ? 'fa-fire' : 'fa-check-circle';
+                    const badgeIcon = shift.is_urgent ? 'fa-fire-alt' : 'fa-check-circle';
                     const badgeText = shift.is_urgent ? 'ด่วนมาก' : 'ว่าง';
 
                     const html = `
                     <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover-card transition-all-300 relative group cursor-pointer flex flex-col h-full animate-enter">
                         <div class="flex justify-between items-start mb-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 font-bold border border-slate-200 text-sm">
-                                    ${shift.user_name.charAt(0)}
+                                <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 text-sm shadow-sm">
+                                    ${userName.charAt(0)}
                                 </div>
-                                <div>
-                                    <div class="font-bold text-slate-800 text-sm line-clamp-1">${shift.user_name}</div>
-                                    <div class="text-xs text-slate-500">${shift.department}</div>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-slate-800 text-sm line-clamp-1">${userName}</div>
+                                    <div class="text-[10px] text-slate-400">พยาบาลวิชาชีพ</div>
                                 </div>
                             </div>
-                            <span class="${badgeClass} border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex items-center gap-1">
+                            <span class="${badgeClass} border px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <i class="fas ${badgeIcon}"></i> ${badgeText}
                             </span>
                         </div>
                         
-                        <div class="bg-slate-50/80 rounded-xl p-3 mb-4 border border-slate-100 space-y-2">
+                        <div class="bg-slate-50/80 rounded-xl p-3 mb-4 border border-slate-100/50 space-y-2.5">
                             <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                                    <i class="far fa-calendar text-indigo-500"></i> ${moment(shift.shift_date).format('D MMM YY')}
+                                <div class="flex items-center gap-2 text-xs text-slate-700 font-semibold">
+                                    <div class="w-6 h-6 rounded-lg bg-white flex items-center justify-center shadow-sm text-indigo-500">
+                                        <i class="far fa-calendar"></i>
+                                    </div>
+                                    ${moment(shift.shift_date).format('ddddที่ D MMM YY')}
                                 </div>
-                                <div class="text-xs text-slate-400">${safeTimeAgo(shift.created_at)}</div> </div>
-                            <div class="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                                <i class="far fa-clock text-orange-500"></i> ${shift.shift_time_label}
+                                <div class="text-[10px] text-slate-400 bg-white px-2 py-0.5 rounded-md border border-slate-100">${safeTimeAgo(shift.created_at)}</div>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                <div class="w-6 h-6 rounded-lg bg-white flex items-center justify-center shadow-sm text-orange-500">
+                                    <i class="far fa-clock"></i>
+                                </div>
+                                กะ: <span class="text-slate-800 ml-1">${shift.shift_time_label}</span>
                             </div>
                         </div>
 
                         <div class="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between gap-3">
-                            <div class="text-indigo-600 font-bold text-sm bg-indigo-50 px-3 py-1.5 rounded-lg truncate max-w-[50%]">
-                                ${shift.condition}
+                            <div class="text-indigo-600 font-extrabold text-sm bg-indigo-50/50 px-3 py-2 rounded-xl truncate flex-1 border border-indigo-100/50">
+                                <i class="fas fa-tags text-[10px] mr-1 opacity-70"></i> ${condition}
                             </div>
-                            <button onclick="requestTrade(${shift.id}, '${shift.user_name}')" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-200 active:scale-95 whitespace-nowrap">
-                                ขอซื้อ <i class="fas fa-arrow-right ml-1"></i>
+                            <button onclick="requestTrade(${shift.id}, '${userName}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95 flex items-center gap-2">
+                                ซื้อเวร <i class="fas fa-chevron-right text-[10px]"></i>
                             </button>
                         </div>
                     </div>`;
@@ -349,7 +375,7 @@
                 });
             } catch (error) {
                 console.error('API Error:', error);
-                container.innerHTML = `<div class="col-span-full text-center text-red-400 py-10">เชื่อมต่อ Server ไม่ได้</div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 text-sm">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</div>`;
             }
         }
 
@@ -901,33 +927,42 @@
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#4f46e5',
-                cancelButtonColor: '#94a3b8',
                 confirmButtonText: 'ยืนยันซื้อ',
                 cancelButtonText: 'ยกเลิก',
                 customClass: { popup: 'rounded-2xl' }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    // แสดง Loading ระหว่างรอเช็คความเสี่ยง
+                    Swal.fire({ title: 'กำลังตรวจสอบความปลอดภัย...', didOpen: () => Swal.showLoading() });
+
                     fetch(`${API_BASE}/api/market/request-trade`, { 
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({
-                            buyerId: currentUserId,
-                            postSellId: shiftId 
-                        })
+                        body: JSON.stringify({ buyerId: currentUserId, postSellId: shiftId })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            Swal.fire({ icon: 'success', title: 'ส่งคำขอสำเร็จ', text: 'กรุณารอเจ้าของเวรกดยืนยัน', showConfirmButton: false, timer: 2000, customClass: { popup: 'rounded-2xl' } });
-                            reloadData(this);
+                            // --- จุดที่เพิ่ม: ถ้ามีคำเตือนความเสี่ยง (เช่น บ่ายต่อเช้า) ---
+                            if (data.fatigueWarning) {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'ตรวจพบความเสี่ยงความล้า',
+                                    text: data.fatigueWarning,
+                                    confirmButtonText: 'รับทราบและส่งคำขอ',
+                                    confirmButtonColor: '#f59e0b'
+                                }).then(() => {
+                                    reloadData();
+                                });
+                            } else {
+                                Swal.fire({ icon: 'success', title: 'ส่งคำขอสำเร็จ', showConfirmButton: false, timer: 2000 });
+                                reloadData();
+                            }
                         } else {
                             Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถทำรายการได้', 'error');
                         }
                     })
-                    .catch(err => {
-                        console.error(err);
-                        Swal.fire('Connection Error', 'ไม่สามารถเชื่อมต่อ Server ได้', 'error');
-                    });
+                    .catch(err => Swal.fire('Error', 'การเชื่อมต่อล้มเหลว', 'error'));
                 }
             });
         }
@@ -940,10 +975,10 @@
             
             fetchMarketData(type);
         }
-                async function adminAction(transactionId, action) {
+        async function adminAction(transactionId, action) {
             const result = await Swal.fire({
                 title: action === 'approve' ? 'ยืนยันการอนุมัติ?' : 'ยืนยันการปฏิเสธ?',
-                text: "ข้อมูลตารางเวรจะถูกเปลี่ยนแปลงถาวร",
+                text: action === 'approve' ? "ข้อมูลตารางเวรของพยาบาลทั้งสองท่านจะถูกสลับทันที" : "คำขอนี้จะถูกยกเลิก",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: action === 'approve' ? '#10b981' : '#ef4444',
@@ -956,16 +991,17 @@
                 try {
                     const res = await apiRequest(`${API_BASE}/api/admin/market/action`, {
                         method: 'POST',
-                        body: JSON.stringify({ 
-                            transactionId, 
-                            action, 
-                            adminId: currentUserId 
-                        })
+                        body: JSON.stringify({ transactionId, action, adminId: currentUserId })
                     });
                     const data = await res.json();
+                    
                     if (data.success) {
-                        Swal.fire('สำเร็จ', data.message, 'success');
-                        reloadData(this); // เรียกโหลดข้อมูลใหม่ทั้งหมด
+                        // แจ้งสำเร็จและ Refresh ข้อมูล
+                        await Swal.fire({ icon: 'success', title: 'ดำเนินการเรียบร้อย', text: data.message, timer: 1500, showConfirmButton: false });
+                        reloadData(); 
+                    } else {
+                        // ถ้าไม่สำเร็จ (เช่น ติดกฎความปลอดภัยในวินาทีสุดท้าย) ให้แจ้งเหตุผล
+                        Swal.fire('ไม่สามารถอนุมัติได้', data.message, 'error');
                     }
                 } catch (err) {
                     Swal.fire('Error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');

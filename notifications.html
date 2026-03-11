@@ -112,6 +112,10 @@
                 if (loader) loader.classList.add('hidden');
             }
         }
+        function handleSafeRedirect(element) {
+            const info = decodeURIComponent(element.getAttribute('data-info'));
+            handleActionRedirect(info);
+        }
 
         async function markAllAsRead() {
             const token = localStorage.getItem('token');
@@ -126,7 +130,7 @@
             }
         }
 
-        function renderList(data) {
+       function renderList(data) {
             const list = document.getElementById('notificationList');
             const empty = document.getElementById('emptyState');
             if (!list) return;
@@ -145,7 +149,6 @@
                 let info = noti.info || '';
                 const title = noti.Title || 'แจ้งเตือน';
                 
-                // Format date for display
                 const longDateRegex = /[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{2}\s\d{4}/g;
                 info = info.replace(longDateRegex, (match) => moment(match).add(543, 'years').format('D MMM YY'));
                 info = info.replace(/00:00:00 GMT\+0700 \(Indochina Time\)/g, '');
@@ -159,10 +162,14 @@
                 if (info.includes('แลก') || info.includes('สลับ')) theme = { icon: 'fa-sync-alt', color: 'text-orange-500', bg: 'bg-orange-50' };
                 if (isSuccess) theme.icon = 'fa-check-circle';
 
+                // --- จุดที่แก้ไข: ห่อข้อความไว้ให้ปลอดภัย ---
+                const encodedInfo = encodeURIComponent(noti.info || '');
+
                 const html = `
                 <div class="card-enter bg-white rounded-2xl border p-4 shadow-sm mb-4 ${isActionable ? 'clickable-card border-indigo-500 bg-indigo-50/30' : 'border-slate-100'}" 
                     style="animation-delay: ${index * 0.05}s"
-                    onclick="${isActionable ? `handleActionRedirect('${noti.info.replace(/'/g, "\\'")}')` : ''}">
+                    data-info="${encodedInfo}"
+                    onclick="${isActionable ? 'handleSafeRedirect(this)' : ''}">
                     <div class="flex gap-4">
                         <div class="w-12 h-12 rounded-2xl ${theme.bg} flex-shrink-0 flex items-center justify-center shadow-sm">
                             <i class="fas ${theme.icon} ${theme.color} text-lg"></i>
@@ -259,6 +266,24 @@
         }
 
         function handleActionRedirect(info) {
+            // ถ้าข้อความมีคำว่า "แจ้งเตือน" หรือ "ความเสี่ยง" ให้โชว์ Alert เตือนก่อนไปหน้าอื่น
+            if (info.includes('⚠️') || info.includes('เสี่ยง') || info.includes('พักผ่อนน้อย')) {
+                Swal.fire({
+                    title: 'พบความเสี่ยงความล้า',
+                    text: info, // โชว์เหตุผลที่ระบบตรวจพบ
+                    icon: 'warning',
+                    confirmButtonText: 'รับทราบและตรวจสอบ',
+                    confirmButtonColor: '#f59e0b'
+                }).then(() => {
+                    goToRelevantPage(info);
+                });
+            } else {
+                goToRelevantPage(info);
+            }
+        }
+
+        // ฟังก์ชันแยกเพื่อความสะอาดของโค้ด
+        function goToRelevantPage(info) {
             if (info.includes('ซื้อ') || info.includes('ขาย')) {
                 window.location.href = 'trade_market.html';
             } else if (info.includes('แลก') || info.includes('สลับ')) {
