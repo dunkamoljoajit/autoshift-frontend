@@ -106,25 +106,33 @@
         }
         /* ไฮไลต์ชื่อวันหยุด */
         .holiday-name {
-            font-size: 8px;
-            color: #ef4444; /* สีแดง */
+            font-size: 10px;        /* ⬆️ ปรับจาก 8px เป็น 10px */
+            color: #dc2626;        /* ใช้สีแดงที่เข้มขึ้นเล็กน้อยเพื่อให้ตัดกับพื้นหลัง */
             font-weight: 700;
-            margin-top: 1px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 90%;
+            margin-top: 2px;
+            width: 100%;           /* ขยายให้เต็มพื้นที่ Cell */
             text-align: center;
+            line-height: 1.1;      /* ปรับระยะห่างระหว่างบรรทัด */
+            
+            /* กรณีชื่อยาวเกินไป ให้แสดง 2 บรรทัดแทนการตัดคำทิ้ง */
+            white-space: normal;    /* 🔄 เปลี่ยนจาก nowrap เป็น normal */
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* แสดงสูงสุด 2 บรรทัด */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         /* ปรับสีตัวเลขวันที่ของวันหยุด */
         .day-cell.is-holiday .date-number {
+            font-size: 16px;       /* ⬆️ ถ้าอยากให้เลขวันที่ใหญ่ขึ้นด้วย */
             color: #ef4444 !important;
+            font-weight: 800;      /* เน้นตัวหนาเป็นพิเศษ */
         }
 
         /* พื้นหลังจางๆ สำหรับวันหยุด */
         .day-cell.is-holiday {
-            background-color: rgba(254, 226, 226, 0.4); /* แดงจางๆ */
+            background-color: rgba(254, 226, 226, 0.6); /* ⬆️ เพิ่มความเข้มพื้นหลังเล็กน้อย */
+            border: 1px solid rgba(239, 68, 68, 0.2);   /* เพิ่มเส้นขอบแดงจางๆ ให้ดูเป็นระเบียบ */
         }
 
         /* --- ANIMATIONS --- */
