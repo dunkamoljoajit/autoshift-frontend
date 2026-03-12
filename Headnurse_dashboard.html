@@ -105,6 +105,12 @@
         /* สีของข้อความแจ้งเตือน Match */
         .m-text-success { color: #28a745; font-size: 0.8rem; }
         .m-text-danger { color: #dc3545; font-size: 0.8rem; }
+        /* สถานะเมื่อปุ่มถูกล็อก */
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+            filter: grayscale(0.5);
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -386,6 +392,21 @@
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
+                // --- [เพิ่มส่วนตรวจสอบ Deadline อัตโนมัติ] ---
+                if (s.deadline && status.isOpen) {
+                    const today = moment().startOf('day');
+                    const deadlineDate = moment(s.deadline).startOf('day');
+
+                    // ถ้าวันนี้ "เลย" วันที่กำหนด (After) หรือ "เป็นวันเดียวกับ" Deadline 
+                    // ให้ปิดระบบทันที (คุณสามารถปรับเป็น .isAfter(deadlineDate) ถ้าต้องการให้ปิดวันถัดไป)
+                    if (today.isAfter(deadlineDate)) {
+                        console.log("System reached deadline. Closing automatically...");
+                        await autoCloseSystem(); 
+                        return; // หยุดการทำงานแล้วให้ฟังก์ชัน autoClose เรียก loadAllData ใหม่เอง
+                    }
+                }
+                // ------------------------------------------
+
                 const parseQuota = (data) => {
                     if (!data) return null;
                     try {
@@ -395,19 +416,15 @@
                     } catch (e) { return null; }
                 };
 
-                // 1. โหลดข้อมูลลงตัวแปรหน่วยความจำ
                 allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
                 allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
                 allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
 
-                // 2. 🔥 บังคับยัดค่าใส่หน้าจอทันทีก่อนจะทำอย่างอื่น 
-                // (เพื่อให้หน้าจอมีค่า "ก่อน" ที่ switchDayType จะแอบไปเซฟทับ)
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
                 document.getElementById('quotaNight').value = current.night;
 
-                // 3. สั่งอัปเดต UI (สีปุ่ม/หัวข้อ)
                 switchDayType(currentDayType);
 
                 if (s.deadline) {
@@ -417,16 +434,35 @@
 
             updatePeriodUI(status.isOpen);
 
+            // ปรับแต่งปุ่มบันทึก: ถ้าเปิดอยู่ (Open) จะกดบันทึกไม่ได้
             const btnSave = document.getElementById('btn-save-settings');
+            const inputs = document.querySelectorAll('.stat-input, #deadlineDate');
+            
             if (status.isOpen === true) {
                 btnSave.disabled = true;
-                btnSave.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
+                btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
+                // ล็อก Input ทั้งหมดไม่ให้พิมพ์
+                inputs.forEach(input => input.disabled = true);
             } else {
                 btnSave.disabled = false;
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
+                inputs.forEach(input => input.disabled = false);
             }
 
         } catch (e) { console.error("Load Data Error:", e); }
+    }
+
+    // ฟังก์ชันเสริมสำหรับปิดระบบอัตโนมัติ
+    async function autoCloseSystem() {
+        try {
+            await fetch(`${API_URL}/api/admin/toggle-window`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ status: 'Closed' }) 
+            });
+            // โหลดข้อมูลใหม่หลังจากปิดระบบแล้ว
+            window.location.reload(); 
+        } catch (e) { console.error("Auto close failed", e); }
     }
     async function saveSettings(e) {
         if (e) e.preventDefault();
