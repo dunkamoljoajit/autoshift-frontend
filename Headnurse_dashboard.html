@@ -392,20 +392,16 @@
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // --- [เพิ่มส่วนตรวจสอบ Deadline อัตโนมัติ] ---
+                // 1. ตรวจสอบ Deadline อัตโนมัติ (ใช้ Moment.js)
                 if (s.deadline && status.isOpen) {
                     const today = moment().startOf('day');
                     const deadlineDate = moment(s.deadline).startOf('day');
-
-                    // ถ้าวันนี้ "เลย" วันที่กำหนด (After) หรือ "เป็นวันเดียวกับ" Deadline 
-                    // ให้ปิดระบบทันที (คุณสามารถปรับเป็น .isAfter(deadlineDate) ถ้าต้องการให้ปิดวันถัดไป)
+                    // ถ้าวันนี้ "เลย" วันที่กำหนด (After) ให้สั่งปิดระบบทันที
                     if (today.isAfter(deadlineDate)) {
-                        console.log("System reached deadline. Closing automatically...");
                         await autoCloseSystem(); 
-                        return; // หยุดการทำงานแล้วให้ฟังก์ชัน autoClose เรียก loadAllData ใหม่เอง
+                        return; 
                     }
                 }
-                // ------------------------------------------
 
                 const parseQuota = (data) => {
                     if (!data) return null;
@@ -416,40 +412,58 @@
                     } catch (e) { return null; }
                 };
 
+                // 2. โหลดข้อมูล Quota ลงตัวแปร
                 allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
                 allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
                 allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
 
+                // 3. ยัดค่าลง Input ตามประเภทวันที่เลือกอยู่
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
                 document.getElementById('quotaNight').value = current.night;
 
-                switchDayType(currentDayType);
-
                 if (s.deadline) {
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
+
+                // เรียก switchDayType เพื่อจัดการ UI ของ Tab
+                switchDayType(currentDayType);
             }
 
-            updatePeriodUI(status.isOpen);
-
-            // ปรับแต่งปุ่มบันทึก: ถ้าเปิดอยู่ (Open) จะกดบันทึกไม่ได้
+            // 4. จัดการสถานะปุ่มและ Input ตามสถานะการ "เปิดระบบ" (isOpen)
             const btnSave = document.getElementById('btn-save-settings');
-            const inputs = document.querySelectorAll('.stat-input, #deadlineDate');
+            const allInputs = document.querySelectorAll('.stat-input, #deadlineDate');
             
             if (status.isOpen === true) {
+                // --- กรณีระบบเปิด (OPEN) ---
                 btnSave.disabled = true;
                 btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-                // ล็อก Input ทั้งหมดไม่ให้พิมพ์
-                inputs.forEach(input => input.disabled = true);
+                btnSave.style.background = "#94a3b8"; // เปลี่ยนเป็นสีเทาเพื่อให้รู้ว่า Lock
+
+                // ล็อกช่องกรอกข้อมูลทั้งหมด
+                allInputs.forEach(input => {
+                    input.disabled = true;
+                    input.style.backgroundColor = "#f1f5f9"; // ทำพื้นหลังให้ดูเป็น Read-only
+                });
             } else {
+                // --- กรณีระบบปิด (CLOSED) ---
                 btnSave.disabled = false;
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-                inputs.forEach(input => input.disabled = false);
+                btnSave.style.background = ""; // กลับไปใช้สี Gradient ตาม CSS เดิม
+
+                allInputs.forEach(input => {
+                    input.disabled = false;
+                    input.style.backgroundColor = "";
+                });
             }
 
-        } catch (e) { console.error("Load Data Error:", e); }
+            // 5. อัปเดตปุ่มเปิด/ปิด และ ปุ่มสร้างตาราง
+            updatePeriodUI(status.isOpen);
+
+        } catch (e) { 
+            console.error("Load Data Error:", e); 
+        }
     }
 
     // ฟังก์ชันเสริมสำหรับปิดระบบอัตโนมัติ
