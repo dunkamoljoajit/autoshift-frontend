@@ -366,6 +366,8 @@
 
     async function loadAllData() {
         const token = localStorage.getItem('token');
+        const btnSave = document.getElementById('btn-save-settings');
+        
         try {
             const [setRes, statRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/get-settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -375,79 +377,49 @@
             const settings = await setRes.json();
             const status = await statRes.json();
 
-            if(settings.success && settings.settings) {
+            if (settings.success && settings.settings) {
                 const s = settings.settings;
-                // โหลดข้อมูลใส่ Object แยกชุด (รองรับข้อมูลแบบเก่าด้วย)
-                allQuotas.weekday = s.weekdayQuotas || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
-                allQuotas.weekend = s.weekendQuotas || { morning: 0, afternoon: 0, night: 0 };
-                allQuotas.holiday = s.holidayQuotas || { morning: 0, afternoon: 0, night: 0 };
-                
-                switchDayType(currentDayType); // สั่งโชว์ค่าเริ่มต้น
 
-                if(s.deadline) {
+                // 1. โหลดข้อมูล Weekday (วันธรรมดา) - รองรับทั้งโครงสร้างใหม่และเก่า
+                allQuotas.weekday = s.weekdayQuotas || { 
+                    morning: s.morning || 0, 
+                    afternoon: s.afternoon || 0, 
+                    night: s.night || 0 
+                };
+
+                // 2. โหลดข้อมูล Weekend และ Holiday 
+                // Logic: ถ้าใน DB ไม่มีข้อมูลวันหยุด ให้ใช้ค่าจากวันธรรมดาเป็น Default ไปก่อน (ป้องกันเลข 0 โผล่มาทำ UI พัง)
+                allQuotas.weekend = s.weekendQuotas || { ...allQuotas.weekday };
+                allQuotas.holiday = s.holidayQuotas || { ...allQuotas.weekday };
+
+                // 3. สั่งแสดงผลหน้าจอตาม Tab ที่เลือกอยู่ (ปกติคือ weekday)
+                switchDayType(currentDayType);
+
+                // 4. ตั้งค่าวันที่ Deadline
+                if (s.deadline) {
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
             }
 
+            // 5. อัปเดตสถานะปุ่มและ UI วงจรการเปิด/ปิด
             updatePeriodUI(status.isOpen);
 
-            const btnSave = document.getElementById('btn-save-settings');
             if (status.isOpen === true) {
                 btnSave.disabled = true;
                 btnSave.innerHTML = '<i class="fas fa-check"></i> บันทึกสำเร็จแล้ว';
+                btnSave.classList.replace('btn-primary', 'bg-violet-500'); // ปรับสีให้ดูซอฟต์ลงเมื่อล็อค
+                btnSave.style.cursor = 'default';
             } else {
                 btnSave.disabled = false;
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
+                btnSave.style.cursor = 'pointer';
             }
-        } catch(e) { console.error(e); }
-    }
 
-    // --- [จุดที่ 3: แก้ไข Payload ให้ส่งข้อมูลครบ 3 ชุด] ---
-    async function saveSettings(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save-settings');
-        const originalHTML = btn.innerHTML;
-
-        // เซฟค่าหน้าจอล่าสุดลง Object ก่อนบันทึก
-        allQuotas[currentDayType] = {
-            morning: document.getElementById('quotaMorning').value,
-            afternoon: document.getElementById('quotaAfternoon').value,
-            night: document.getElementById('quotaNight').value
-        };
-
-        const payload = {
-            weekdayQuotas: allQuotas.weekday,
-            weekendQuotas: allQuotas.weekend,
-            holidayQuotas: allQuotas.holiday,
-            deadline: document.getElementById('deadlineDate').value
-        };
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
-
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/admin/save-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                await fetch(`${API_URL}/api/admin/toggle-window`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-                    body: JSON.stringify({ status: 'Open' }) 
-                });
-
-                Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'บันทึกข้อมูลและเปิดระบบเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false });
-                loadAllData(); 
-            } else { throw new Error(data.message); }
-        } catch (err) {
-            Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: err.message });
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
+        } catch (e) { 
+            console.error("Load All Data Error:", e);
+            // หากโหลดพลาด ให้ปุ่มกลับมาใช้งานได้เพื่อลองใหม่อีกครั้ง
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="fas fa-sync"></i> ลองโหลดใหม่อีกครั้ง';
         }
     }
 
