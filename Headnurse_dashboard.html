@@ -456,47 +456,35 @@
 
     // ฟังก์ชันใหม่สำหรับคุมการ Lock ทุกอย่างบนหน้าจอ
     function syncLockStatus(isOpen) {
+        const btnOpen = document.getElementById('btn-open');
+        const btnClosed = document.getElementById('btn-closed');
         const btnSave = document.getElementById('btn-save-settings');
-        const allInputs = document.querySelectorAll('.stat-input');
-        const deadlineInput = document.getElementById('deadlineDate');
 
         if (isOpen) {
-            // --- ระบบเปิดอยู่: ล็อกการแก้ไข ---
+            // 1. สลับปุ่ม Toggle ให้ไปอยู่ที่ OPEN
+            if (btnOpen) btnOpen.className = 'toggle-btn toggle-active-open';
+            if (btnClosed) btnClosed.className = 'toggle-btn toggle-inactive';
+
+            // 2. ล็อกปุ่มบันทึก
             btnSave.disabled = true;
+            btnSave.style.background = "#94a3b8"; // สีเทา
             btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-            btnSave.style.background = "#94a3b8"; 
-            btnSave.style.opacity = "0.7";
-
-            allInputs.forEach(input => {
-                input.readOnly = true; // ใช้ readOnly แทน disabled เพื่อให้ค่าไม่หายและสไตล์ยังชัด
-                input.style.backgroundColor = "#f3f4f6";
-                input.style.cursor = "not-allowed";
-            });
-
-            // ล็อก Flatpickr ไม่ให้ปฏิทินเด้ง
-            if(deadlineInput._flatpickr) {
-                deadlineInput._flatpickr.set('clickOpens', false);
-            }
+            
+            // 3. ล็อก Input
+            document.querySelectorAll('.stat-input').forEach(i => i.readOnly = true);
         } else {
-            // --- ระบบปิดอยู่: ปลดล็อกให้บันทึกได้ ---
+            // 1. สลับปุ่ม Toggle ให้ไปอยู่ที่ CLOSED
+            if (btnOpen) btnOpen.className = 'toggle-btn toggle-inactive';
+            if (btnClosed) btnClosed.className = 'toggle-btn toggle-active-closed';
+
+            // 2. ปลดล็อกปุ่มบันทึก
             btnSave.disabled = false;
+            btnSave.style.background = ""; // กลับเป็นสีม่วง Gradient
             btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-            btnSave.style.background = ""; // กลับเป็นสี Gradient ตาม CSS
-            btnSave.style.opacity = "1";
-
-            allInputs.forEach(input => {
-                input.readOnly = false;
-                input.style.backgroundColor = "";
-                input.style.cursor = "auto";
-            });
-
-            // ปลดล็อก Flatpickr
-            if(deadlineInput._flatpickr) {
-                deadlineInput._flatpickr.set('clickOpens', true);
-            }
+            
+            // 3. ปลดล็อก Input
+            document.querySelectorAll('.stat-input').forEach(i => i.readOnly = false);
         }
-
-        updatePeriodUI(isOpen);
     }
     async function saveSettings(e) {
         if (e) e.preventDefault();
