@@ -216,15 +216,34 @@
             const card = document.getElementById('incomplete-card');
             const listCont = document.getElementById('missing-list-container');
             const list = document.getElementById('missing-list');
+            
+            // แสดง Card สรุปจำนวนกะที่ขาด
             card.classList.remove('hidden');
+            // แสดง Container รายชื่อวันที่ขาด
             listCont.classList.remove('hidden');
+            
             document.getElementById('missing-count').innerText = incomplete.length;
-            list.innerHTML = incomplete.map(item => `
-                <div class="bg-white p-3 rounded-lg border-l-4 border-rose-400 shadow-sm flex justify-between">
-                    <span>${moment(item.date).format('D MMM')} (กะ ${item.shift})</span>
-                    <span class="text-rose-600 font-bold">ขาด ${item.wanted - item.got} คน</span>
-                </div>
-            `).join('');
+            
+            // สร้าง HTML สำหรับรายการที่ขาด
+            list.innerHTML = incomplete.map(item => {
+                const missingCount = item.wanted - item.got;
+                // ใช้ moment ช่วยจัดรูปแบบวันที่ให้เป็นภาษาไทย
+                const displayDate = moment(item.date).locale('th').format('D MMM YYYY');
+                
+                return `
+                    <div class="bg-white p-4 rounded-xl border-l-4 border-rose-500 shadow-sm flex justify-between items-center mb-2">
+                        <div>
+                            <span class="block font-bold text-gray-700">${displayDate}</span>
+                            <span class="text-sm text-gray-500">กะการทำงาน: <span class="text-rose-600 font-medium">${item.shift}</span></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">
+                                ขาด ${missingCount} คน
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
        async function exportToExcel() {
         try {
