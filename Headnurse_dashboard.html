@@ -140,6 +140,14 @@
         #date-container i {
             z-index: 50 !important;
         }
+        #btn-generate-real {
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -488,31 +496,40 @@
         const btnOpen = document.getElementById('btn-open');
         const btnClosed = document.getElementById('btn-closed');
         const btnSave = document.getElementById('btn-save-settings');
+        
+        // ดึง Element ปุ่มจัดเวร
+        const btnReal = document.getElementById('btn-generate-real');
+        const btnLock = document.getElementById('btn-generate-locked');
 
         if (isOpen) {
-            // 1. สลับปุ่ม Toggle ให้ไปอยู่ที่ OPEN
+            // --- สถานะ: ระบบเปิดรับข้อมูล ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-active-open';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-inactive';
 
-            // 2. ล็อกปุ่มบันทึก
+            // ล็อกปุ่มบันทึกและ Input
             btnSave.disabled = true;
-            btnSave.style.background = "#94a3b8"; // สีเทา
+            btnSave.style.background = "#94a3b8"; 
             btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-            
-            // 3. ล็อก Input
             document.querySelectorAll('.stat-input').forEach(i => i.readOnly = true);
+
+            // ซ่อนปุ่มจัดเวร (เพราะยังรับข้อมูลไม่เสร็จ)
+            if (btnReal) btnReal.classList.add('hidden');
+            if (btnLock) btnLock.classList.remove('hidden');
+
         } else {
-            // 1. สลับปุ่ม Toggle ให้ไปอยู่ที่ CLOSED
+            // --- สถานะ: ระบบปิดรับข้อมูล ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-inactive';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-active-closed';
 
-            // 2. ปลดล็อกปุ่มบันทึก
+            // ปลดล็อกปุ่มบันทึกและ Input
             btnSave.disabled = false;
-            btnSave.style.background = ""; // กลับเป็นสีม่วง Gradient
+            btnSave.style.background = ""; 
             btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-            
-            // 3. ปลดล็อก Input
             document.querySelectorAll('.stat-input').forEach(i => i.readOnly = false);
+
+            // *** เผยปุ่มจัดเวรให้กดได้ ***
+            if (btnReal) btnReal.classList.remove('hidden');
+            if (btnLock) btnLock.classList.add('hidden');
         }
     }
     async function saveSettings(e) {
