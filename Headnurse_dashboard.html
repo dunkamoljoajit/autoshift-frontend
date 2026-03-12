@@ -496,38 +496,55 @@
         const btnOpen = document.getElementById('btn-open');
         const btnClosed = document.getElementById('btn-closed');
         const btnSave = document.getElementById('btn-save-settings');
+        const statusText = document.getElementById('period-status-text');
         
         // ดึง Element ปุ่มจัดเวร
         const btnReal = document.getElementById('btn-generate-real');
         const btnLock = document.getElementById('btn-generate-locked');
+        
+        // ดึงกลุ่มช่องกรอกตัวเลขโวต้าทั้งหมด
+        const quotaInputs = document.querySelectorAll('.stat-input');
 
         if (isOpen) {
-            // --- สถานะ: ระบบเปิดรับข้อมูล ---
+            // --- [สถานะ OPEN]: ปิดรับการแก้ไข ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-active-open';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-inactive';
+            if (statusText) statusText.innerText = "ขณะนี้ระบบเปิดอยู่ (ล็อกการแก้ไขโควต้า)";
 
-            // ล็อกปุ่มบันทึกและ Input
+            // 1. ล็อกปุ่มบันทึก
             btnSave.disabled = true;
             btnSave.style.background = "#94a3b8"; 
             btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-            document.querySelectorAll('.stat-input').forEach(i => i.readOnly = true);
+            
+            // 2. ล็อกช่อง Input ทุกช่อง (Read Only)
+            quotaInputs.forEach(input => {
+                input.readOnly = true;
+                input.classList.add('bg-gray-100'); // เปลี่ยนสีพื้นหลังให้ดูว่าแก้ไม่ได้
+            });
 
-            // ซ่อนปุ่มจัดเวร (เพราะยังรับข้อมูลไม่เสร็จ)
+            // 3. ซ่อนปุ่มจัดเวร
             if (btnReal) btnReal.classList.add('hidden');
             if (btnLock) btnLock.classList.remove('hidden');
 
         } else {
-            // --- สถานะ: ระบบปิดรับข้อมูล ---
+            // --- [สถานะ CLOSED]: เปิดให้แก้ไขโควต้าและพร้อมจัดเวร ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-inactive';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-active-closed';
+            if (statusText) statusText.innerText = "ระบบปิดแล้ว (คุณสามารถแก้ไขโควต้าและเริ่มจัดเวรได้)";
 
-            // ปลดล็อกปุ่มบันทึกและ Input
+            // 1. ปลดล็อกปุ่มบันทึก
             btnSave.disabled = false;
-            btnSave.style.background = ""; 
-            btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-            document.querySelectorAll('.stat-input').forEach(i => i.readOnly = false);
+            btnSave.style.background = ""; // กลับเป็นสีม่วง Gradient ตาม CSS หลัก
+            btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่าใหม่';
+            
+            // 2. ปลดล็อกช่อง Input ให้พิมพ์ได้ (Editable)
+            quotaInputs.forEach(input => {
+                input.readOnly = false;
+                input.classList.remove('bg-gray-100');
+                input.classList.add('bg-white'); // เปลี่ยนสีให้รู้ว่าพิมพ์ได้แล้ว
+            });
 
-            // *** เผยปุ่มจัดเวรให้กดได้ ***
+            // 3. เผยปุ่มจัดเวรสีชมพู (เผยขึ้นมาให้กดไปหน้าประมวลผล)
             if (btnReal) btnReal.classList.remove('hidden');
             if (btnLock) btnLock.classList.add('hidden');
         }
