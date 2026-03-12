@@ -404,11 +404,21 @@
 
                 // 2. จัดการ Quota Data
                 const parseQuota = (data) => {
-                    if (!data) return null;
+                    if (!data) return { morning: 0, afternoon: 0, night: 0 };
                     try {
+                        // แปลง JSON String ให้เป็น Object
                         let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                        return (typeof parsed === 'string') ? JSON.parse(parsed) : parsed;
-                    } catch (e) { return null; }
+                        
+                        // บังคับให้ลูกๆ (morning, afternoon, night) เป็นตัวเลขทั้งหมด (Integer)
+                        return {
+                            morning: parseInt(parsed.morning) || 0,
+                            afternoon: parseInt(parsed.afternoon) || 0,
+                            night: parseInt(parsed.night) || 0
+                        };
+                    } catch (e) { 
+                        console.error("Parse Quota Error:", e);
+                        return { morning: 0, afternoon: 0, night: 0 }; 
+                    }
                 };
 
                 allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
