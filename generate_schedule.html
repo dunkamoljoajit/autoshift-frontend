@@ -174,70 +174,96 @@
             startGeneration();
         }
 
-        async function startGeneration() {
-            const btnArea = document.getElementById('action-area');
-            const loadArea = document.getElementById('loading-area');
-            const resultSec = document.getElementById('result-section');
-            const stepText = document.getElementById('loading-step');
+       async function startGeneration() {
+        const btnArea = document.getElementById('action-area');
+        const loadArea = document.getElementById('loading-area');
+        const resultSec = document.getElementById('result-section');
+        const stepText = document.getElementById('loading-step');
 
-            btnArea.classList.add('hidden');
-            resultSec.classList.add('hidden');
-            loadArea.classList.remove('hidden');
+        // ล้างสถานะการแสดงผลเดิม
+        btnArea.classList.add('hidden');
+        resultSec.classList.add('hidden');
+        document.getElementById('incomplete-card').classList.add('hidden');
+        document.getElementById('missing-list-container').classList.add('hidden');
+        
+        loadArea.classList.remove('hidden');
 
-            const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
-            for (let step of steps) {
-                stepText.innerText = step;
-                await new Promise(r => setTimeout(r, 800));
-            }
-
-            try {
-                const token = localStorage.getItem('token');
-                const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, {
-                    method: 'POST'
-                });
-                const data = await res.json();
-                loadArea.classList.add('hidden');
-                resultSec.classList.remove('hidden');
-
-                if (data.success) {
-                    Swal.fire({ icon: 'success', title: 'จัดเวรเรียบร้อย!', timer: 2000 });
-                    if (data.incompleteShifts && data.incompleteShifts.length > 0) {
-                        renderIncomplete(data.incompleteShifts);
-                    }
-                } else { throw new Error(data.message); }
-            } catch (err) {
-                Swal.fire('ผิดพลาด', err.message, 'error');
-                btnArea.classList.remove('hidden');
-                loadArea.classList.add('hidden');
-            }
+        const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
+        for (let step of steps) {
+            stepText.innerText = step;
+            await new Promise(r => setTimeout(r, 800));
         }
+
+        try {
+            const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            
+            loadArea.classList.add('hidden');
+            resultSec.classList.remove('hidden');
+
+            if (data.success) {
+                // ตรวจสอบว่ามีเวรที่จัดไม่ลงตัวหรือไม่
+                const hasIncomplete = data.incompleteShifts && data.incompleteShifts.length > 0;
+
+                if (hasIncomplete) {
+                    // กรณีมีกะที่ขาด (เช่น กะดึกคนไม่พอ)
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'จัดเวรเสร็จสิ้นแต่ไม่สมบูรณ์',
+                        text: `พบกะที่พยาบาลไม่เพียงพอจำนวน ${data.incompleteShifts.length} รายการ`,
+                        confirmButtonColor: '#f59e0b'
+                    });
+                    renderIncomplete(data.incompleteShifts);
+                } else {
+                    // กรณีครบถ้วน 100%
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'จัดเวรสำเร็จครบถ้วน!', 
+                        timer: 2000 
+                    });
+                }
+            } else { 
+                throw new Error(data.message); 
+            }
+        } catch (err) {
+            Swal.fire('ผิดพลาด', err.message, 'error');
+            btnArea.classList.remove('hidden');
+            loadArea.classList.add('hidden');
+        }
+    }
 
         function renderIncomplete(incomplete) {
             const card = document.getElementById('incomplete-card');
             const listCont = document.getElementById('missing-list-container');
             const list = document.getElementById('missing-list');
             
-            // แสดง Card สรุปจำนวนกะที่ขาด
             card.classList.remove('hidden');
-            // แสดง Container รายชื่อวันที่ขาด
             listCont.classList.remove('hidden');
             
             document.getElementById('missing-count').innerText = incomplete.length;
             
-            // สร้าง HTML สำหรับรายการที่ขาด
             list.innerHTML = incomplete.map(item => {
                 const missingCount = item.wanted - item.got;
-                // ใช้ moment ช่วยจัดรูปแบบวันที่ให้เป็นภาษาไทย
                 const displayDate = moment(item.date).locale('th').format('D MMM YYYY');
                 
+                // แยกสีตามประเภทกะ ถ้าเป็นกะดึกให้เน้นสีม่วง/น้ำเงิน ถ้ากะอื่นใช้สีแดง
+                const isNightShift = item.shift.includes("ดึก");
+                const badgeClass = isNightShift 
+                    ? "bg-indigo-100 text-indigo-700 border border-indigo-200" 
+                    : "bg-rose-100 text-rose-700 border border-rose-200";
+
                 return `
-                    <div class="bg-white p-4 rounded-xl border-l-4 border-rose-500 shadow-sm flex justify-between items-center mb-2">
+                    <div class="bg-white p-4 rounded-xl border-l-4 ${isNightShift ? 'border-indigo-500' : 'border-rose-500'} shadow-sm flex justify-between items-center mb-2">
                         <div>
                             <span class="block font-bold text-gray-700">${displayDate}</span>
-                            <span class="text-sm text-gray-500">กะการทำงาน: <span class="text-rose-600 font-medium">${item.shift}</span></span>
+                            <span class="text-sm text-gray-500">
+                                กะการทำงาน: <span class="${isNightShift ? 'text-indigo-600' : 'text-rose-600'} font-bold">${item.shift}</span>
+                            </span>
                         </div>
                         <div class="text-right">
-                            <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">
+                            <span class="${badgeClass} px-3 py-1 rounded-full text-xs font-bold">
                                 ขาด ${missingCount} คน
                             </span>
                         </div>
