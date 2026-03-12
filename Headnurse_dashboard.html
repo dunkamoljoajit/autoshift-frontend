@@ -123,6 +123,23 @@
             z-index: 10;
             pointer-events: none; /* เพื่อให้คลิกทะลุไอคอนไปโดนช่อง input ได้ */
         }
+        /* บังคับให้ช่องวันที่ตัวใหม่ที่โชว์หน้าจอ มี Padding ซ้ายหลบไอคอน */
+        .flatpickr-mobile + input, 
+        .flatpickr-input + input,
+        input[readonly].flatpickr-input {
+            padding-left: 3.5rem !important; /* ขยับตัวอักษรออกมา */
+        }
+
+        /* จัดการ Placeholder ของ Flatpickr ให้เขยิบด้วย */
+        .flatpickr-input::placeholder {
+            padding-left: 0; 
+            color: #9ca3af;
+        }
+
+        /* ป้องกันไอคอนจม ให้ลอยเด่นเสมอ */
+        #date-container i {
+            z-index: 50 !important;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
