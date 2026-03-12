@@ -56,8 +56,7 @@
 
         /* 2. บังคับให้ Input ที่ Flatpickr สร้างขึ้นมา (altInput) กว้างเท่าช่องด้านบน */
         .flatpickr-input[readonly] {
-            padding-left: 3rem !important; /* เว้นที่ประมาณ 48px เท่ากับ pl-12 */
-            font-family: 'Kanit', sans-serif;
+            width: 100% !important;
         }
 
         /* 3. ล็อกขนาด "ตัวปฏิทิน" ที่เด้งลงมา ให้มีขนาดปกติ (ตามรูปภาพที่คุณส่งมา) */
@@ -111,6 +110,18 @@
             cursor: not-allowed;
             opacity: 0.7;
             filter: grayscale(0.5);
+        }
+        /* บังคับ Padding ให้กับ Input ทุกตัวที่ Flatpickr สร้างขึ้น (รวม altInput) */
+        .flatpickr-input.form-control,
+        input.flatpickr-input {
+            padding-left: 3rem !important; /* เว้นที่ให้ไอคอนปฏิทินทางซ้าย */
+            font-family: 'Kanit', sans-serif !important;
+        }
+
+        /* จัดการตำแหน่งไอคอนให้ลอยอยู่บนสุดเสมอ */
+        #date-container i {
+            z-index: 10;
+            pointer-events: none; /* เพื่อให้คลิกทะลุไอคอนไปโดนช่อง input ได้ */
         }
     </style>
 </head>
@@ -622,9 +633,19 @@
         } catch (err) { console.error(err); }
     }
 
-    function setupCalendar() {
-        flatpickr("#deadlineDate", { locale: "th", dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", disableMobile: true, static: false, position: "auto" });
-    }
+   function setupCalendar() {
+    flatpickr("#deadlineDate", { 
+        locale: "th", 
+        dateFormat: "Y-m-d",
+        altInput: true, 
+        altFormat: "j F Y", 
+        // ก๊อปปี้ Class ทั้งหมดจาก Input เดิมมาใส่ที่ตัวโชว์ด้วย
+        altInputClass: "w-full bg-gray-50 border-none rounded-2xl px-4 py-4 pl-12 text-sm font-semibold text-gray-700 outline-none cursor-pointer",
+        disableMobile: true, 
+        static: false, 
+        position: "auto" 
+    });
+}
 
     async function openPasswordModal() {
         // --- ส่วน Password Modal ของคุณทำงานได้ดีอยู่แล้ว สามารถคงเดิมไว้ได้เลยครับ ---
