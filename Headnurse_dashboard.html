@@ -388,12 +388,12 @@
             ]);
 
             const settings = await setRes.json();
-            const status = await statRes.json(); // status.isOpen คือตัวตัดสินทุกอย่าง
+            const status = await statRes.json(); 
 
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // 1. ตรวจสอบ Deadline (ใช้ Moment.js)
+                // 1. ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
                 if (s.deadline && status.isOpen) {
                     const today = moment().startOf('day');
                     const deadlineDate = moment(s.deadline).startOf('day');
@@ -406,27 +406,19 @@
                 // 2. จัดการ Quota Data
                 const parseQuota = (data) => {
                     if (!data) return { morning: 0, afternoon: 0, night: 0 };
-                    try {
-                        // แปลง JSON String ให้เป็น Object
-                        let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                        
-                        // บังคับให้ลูกๆ (morning, afternoon, night) เป็นตัวเลขทั้งหมด (Integer)
-                        return {
-                            morning: parseInt(parsed.morning) || 0,
-                            afternoon: parseInt(parsed.afternoon) || 0,
-                            night: parseInt(parsed.night) || 0
-                        };
-                    } catch (e) { 
-                        console.error("Parse Quota Error:", e);
-                        return { morning: 0, afternoon: 0, night: 0 }; 
-                    }
+                    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                    return {
+                        morning: parseInt(parsed.morning) || 0,
+                        afternoon: parseInt(parsed.afternoon) || 0,
+                        night: parseInt(parsed.night) || 0
+                    };
                 };
 
-                allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
-                allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
-                allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
+                allQuotas.weekday = parseQuota(s.weekdayQuotas);
+                allQuotas.weekend = parseQuota(s.weekendQuotas);
+                allQuotas.holiday = parseQuota(s.holidayQuotas);
 
-                // แสดงผลตามหน้าปัจจุบัน
+                // แสดงผลตาม Tab ปัจจุบัน
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
@@ -435,10 +427,9 @@
                 if (s.deadline) {
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
-                switchDayType(currentDayType);
             }
 
-            // --- จุดสำคัญ: ผูกสถานะปุ่มบันทึกเข้ากับสถานะเปิดปิดระบบ ---
+            // --- หัวใจสำคัญ: ส่งค่าสถานะไปควบคุม UI ทั้งหมด ---
             syncLockStatus(status.isOpen);
 
         } catch (e) { 
@@ -463,36 +454,45 @@
     // ฟังก์ชันใหม่สำหรับคุมการ Lock ทุกอย่างบนหน้าจอ
     function syncLockStatus(isOpen) {
         const btnSave = document.getElementById('btn-save-settings');
-        const allInputs = document.querySelectorAll('.stat-input, #deadlineDate');
-        const tabs = document.querySelectorAll('#tab-weekday, #tab-weekend, #tab-holiday');
+        const allInputs = document.querySelectorAll('.stat-input');
+        const deadlineInput = document.getElementById('deadlineDate');
 
         if (isOpen) {
-            // ถ้าสถานะคือ OPEN -> ล็อกปุ่มบันทึก และช่องกรอกข้อมูล
+            // --- ระบบเปิดอยู่: ล็อกการแก้ไข ---
             btnSave.disabled = true;
             btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-            btnSave.style.background = "#94a3b8"; // สีเทา
+            btnSave.style.background = "#94a3b8"; 
             btnSave.style.opacity = "0.7";
 
             allInputs.forEach(input => {
-                input.disabled = true;
+                input.readOnly = true; // ใช้ readOnly แทน disabled เพื่อให้ค่าไม่หายและสไตล์ยังชัด
                 input.style.backgroundColor = "#f3f4f6";
                 input.style.cursor = "not-allowed";
             });
+
+            // ล็อก Flatpickr ไม่ให้ปฏิทินเด้ง
+            if(deadlineInput._flatpickr) {
+                deadlineInput._flatpickr.set('clickOpens', false);
+            }
         } else {
-            // ถ้าสถานะคือ CLOSED -> ปลดล็อกให้แก้ไขและบันทึกได้
+            // --- ระบบปิดอยู่: ปลดล็อกให้บันทึกได้ ---
             btnSave.disabled = false;
             btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-            btnSave.style.background = ""; // กลับเป็นสีม่วงตาม CSS
+            btnSave.style.background = ""; // กลับเป็นสี Gradient ตาม CSS
             btnSave.style.opacity = "1";
 
             allInputs.forEach(input => {
-                input.disabled = false;
+                input.readOnly = false;
                 input.style.backgroundColor = "";
                 input.style.cursor = "auto";
             });
+
+            // ปลดล็อก Flatpickr
+            if(deadlineInput._flatpickr) {
+                deadlineInput._flatpickr.set('clickOpens', true);
+            }
         }
 
-        // อัปเดต UI อื่นๆ (ปุ่ม OPEN/CLOSED และปุ่มสร้างตาราง)
         updatePeriodUI(isOpen);
     }
     async function saveSettings(e) {
@@ -547,17 +547,34 @@
     // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
     async function togglePeriod(status) {
         const action = status === 'Open' ? 'เปิด' : 'ปิด';
-        const result = await Swal.fire({ title: `ยืนยันการ ${action} ระบบ?`, icon: 'warning', showCancelButton: true });
+        const result = await Swal.fire({ 
+            title: `ยืนยันการ ${action} ระบบ?`, 
+            text: status === 'Open' ? "พยาบาลจะเริ่มส่งข้อจำกัดได้ และคุณจะแก้ไขค่า Quota ไม่ได้" : "คุณจะสามารถแก้ไขค่า Quota ได้ตามปกติ",
+            icon: 'warning', 
+            showCancelButton: true,
+            confirmButtonColor: '#7c3aed'
+        });
+
         if(!result.isConfirmed) return;
+
         try {
             const res = await fetch(`${API_URL}/api/admin/toggle-window`, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
                 body: JSON.stringify({ status }) 
             });
             const data = await res.json();
-            if(data.success) loadAllData();
-        } catch (e) { console.error(e); }
+            if(data.success) {
+                await loadAllData(); // โหลดข้อมูลใหม่เพื่อ Update UI และล็อกปุ่มบันทึกอัตโนมัติ
+                Swal.fire({ icon: 'success', title: `ทำการ${action}ระบบแล้ว`, timer: 1000, showConfirmButton: false });
+            }
+        } catch (e) { 
+            console.error(e); 
+            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด' });
+        }
     }
 
     function updatePeriodUI(isOpen) {
