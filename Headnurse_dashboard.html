@@ -416,66 +416,74 @@
         document.getElementById('quotaNight').value = allQuotas[type].night;
     }
 
-    async function loadAllData() {
-        const token = localStorage.getItem('token');
-        try {
-            const [setRes, statRes] = await Promise.all([
-                fetch(`${API_URL}/api/admin/get-settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/check-constraint-window`, { headers: { 'Authorization': `Bearer ${token}` } })
-            ]);
+  async function loadAllData() {
+    const token = localStorage.getItem('token');
+    try {
+        const [setRes, statRes] = await Promise.all([
+            fetch(`${API_URL}/api/admin/get-settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API_URL}/api/check-constraint-window`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
 
-            const settings = await setRes.json();
+        const settings = await setRes.json();
+        
+        if (settings.success && settings.settings) {
+            const s = settings.settings;
+
+            // 1. ตรวจสอบสถานะจาก Database (ดึงมาเป็นตัวแปรพักไว้ก่อน)
+            let isSystemOpen = s.SystemStatus === 'Open'; 
             
-            if (settings.success && settings.settings) {
-                const s = settings.settings;
-
-                // --- [จุดสำคัญ] ดึงค่าจาก Key ที่เราเพิ่งเซฟลง DB ---
-                // ตรวจสอบว่าใน DB เก็บชื่อ SystemStatus (S ตัวใหญ่) หรือไม่
-                const isSystemOpen = s.SystemStatus === 'Open'; 
+            // 2. [ส่วนที่แก้ไข] ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
+            if (s.deadline) {
+                const today = moment().startOf('day');
+                const deadlineDate = moment(s.deadline).startOf('day');
                 
-                // 1. ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
-                if (s.deadline && isSystemOpen) {
-                    const today = moment().startOf('day');
-                    const deadlineDate = moment(s.deadline).startOf('day');
-                    if (today.isAfter(deadlineDate)) {
+                // ถ้าวันนี้ "เลย" วัน Deadline ไปแล้ว
+                if (today.isAfter(deadlineDate)) {
+                    if (isSystemOpen) {
+                        // ถ้าใน DB ยังเป็น Open ให้สั่งปิดอัตโนมัติ
                         await autoCloseSystem(); 
-                        return; 
+                        return; // ออกจากฟังก์ชันเพื่อรอโหลดใหม่จาก autoCloseSystem()
+                    } else {
+                        // ถ้าเป็น Closed อยู่แล้ว ก็ให้ตัวแปรสถานะเป็นเท็จ
+                        isSystemOpen = false;
                     }
                 }
-
-                // 2. จัดการ Quota Data (เหมือนเดิม)
-                const parseQuota = (data) => {
-                    if (!data) return { morning: 0, afternoon: 0, night: 0 };
-                    let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                    return {
-                        morning: parseInt(parsed.morning) || 0,
-                        afternoon: parseInt(parsed.afternoon) || 0,
-                        night: parseInt(parsed.night) || 0
-                    };
-                };
-
-                allQuotas.weekday = parseQuota(s.weekdayQuotas);
-                allQuotas.weekend = parseQuota(s.weekendQuotas);
-                allQuotas.holiday = parseQuota(s.holidayQuotas);
-
-                // แสดงผล Quota ปัจจุบัน
-                const current = allQuotas[currentDayType];
-                document.getElementById('quotaMorning').value = current.morning;
-                document.getElementById('quotaAfternoon').value = current.afternoon;
-                document.getElementById('quotaNight').value = current.night;
-
-                if (s.deadline) {
-                    document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
-                }
-
-                // --- [ผลลัพธ์] สั่งให้ UI แสดงผล Open และ Lock ช่องกรอกทันที ---
-                syncLockStatus(isSystemOpen); 
             }
 
-        } catch (e) { 
-            console.error("Load Data Error:", e); 
+            // 3. จัดการ Quota Data (ส่วนนี้คงเดิม)
+            const parseQuota = (data) => {
+                if (!data) return { morning: 0, afternoon: 0, night: 0 };
+                let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                return {
+                    morning: parseInt(parsed.morning) || 0,
+                    afternoon: parseInt(parsed.afternoon) || 0,
+                    night: parseInt(parsed.night) || 0
+                };
+            };
+
+            allQuotas.weekday = parseQuota(s.weekdayQuotas);
+            allQuotas.weekend = parseQuota(s.weekendQuotas);
+            allQuotas.holiday = parseQuota(s.holidayQuotas);
+
+            // แสดงผล Quota ปัจจุบัน
+            const current = allQuotas[currentDayType];
+            document.getElementById('quotaMorning').value = current.morning;
+            document.getElementById('quotaAfternoon').value = current.afternoon;
+            document.getElementById('quotaNight').value = current.night;
+
+            if (s.deadline) {
+                document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
+            }
+
+            // 4. [จุดสำคัญที่สุด] สั่งให้ UI แสดงผลตามสถานะที่เช็คแล้ว
+            // ถ้าเลย Deadline มาแล้ว isSystemOpen จะเป็น false ปุ่มจัดเวรจะโผล่เอง
+            syncLockStatus(isSystemOpen); 
         }
+
+    } catch (e) { 
+        console.error("Load Data Error:", e); 
     }
+}
     async function autoCloseSystem() {
         const token = localStorage.getItem('token');
         try {
@@ -566,7 +574,7 @@
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: deadline,
-            status: "Open" // <--- ส่งค่าสถานะ Open ไปด้วย
+            status: statusToSend // <--- ส่งค่าสถานะ Open ไปด้วย
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -606,9 +614,8 @@
                 ? "คุณเลือก: เปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)" 
                 : "คุณเลือก: ปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)";
 
-        // --- ส่วนที่ต้องเพิ่ม ---
+        // --- เพิ่มบรรทัดนี้ เพื่อให้ช่อง Input เปิด/ปิด และปุ่มจัดเวร โผล่/หาย ทันทีที่กดสลับ ---
         syncLockStatus(isOpen); 
-        // -----------------------
     }
 
     function updatePeriodUI(isOpen) {
