@@ -445,6 +445,20 @@
             console.error("Load Data Error:", e); 
         }
     }
+    async function autoCloseSystem() {
+        const token = localStorage.getItem('token');
+        try {
+            await fetch(`${API_URL}/api/admin/toggle-window`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status: 'Closed' }) 
+            });
+            // หลังจากสั่งปิดที่ Server แล้ว ให้โหลดข้อมูลใหม่เพื่อ Update UI ทันที
+            await loadAllData();
+        } catch (e) {
+            console.error("Auto Close Error:", e);
+        }
+    }
 
     // ฟังก์ชันใหม่สำหรับคุมการ Lock ทุกอย่างบนหน้าจอ
     function syncLockStatus(isOpen) {
