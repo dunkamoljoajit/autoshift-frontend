@@ -331,16 +331,24 @@
 
     // --- [จุดที่ 2: ต้องเพิ่มฟังก์ชันสลับ Tab เพื่อให้เลขไม่หาย] ---
     function switchDayType(type) {
-        // 1. เซฟค่าปัจจุบันที่โชว์อยู่ลงในหน่วยความจำก่อนสลับ
-        allQuotas[currentDayType] = {
-            morning: document.getElementById('quotaMorning').value || 0,
-            afternoon: document.getElementById('quotaAfternoon').value || 0,
-            night: document.getElementById('quotaNight').value || 0
-        };
+        // 1. ดึงค่าจากหน้าจอมาตรวจสอบก่อน
+        const m = document.getElementById('quotaMorning').value;
+        const a = document.getElementById('quotaAfternoon').value;
+        const n = document.getElementById('quotaNight').value;
+
+        // 2. "เซฟ" ลงหน่วยความจำ เฉพาะเมื่อมีค่าที่ถูกต้อง (ไม่ใช่ช่องว่าง หรือ 0 ทั้งหมด)
+        // เพื่อป้องกันจังหวะโหลดหน้าจอแล้วเอาค่าว่างไปทับ data จริง
+        if (m !== "" || a !== "" || n !== "") {
+            allQuotas[currentDayType] = {
+                morning: m || 0,
+                afternoon: a || 0,
+                night: n || 0
+            };
+        }
 
         currentDayType = type;
 
-        // 2. ปรับสีปุ่ม Tab
+        // 3. ปรับสีปุ่ม Tab
         ['weekday', 'weekend', 'holiday'].forEach(t => {
             const btn = document.getElementById(`tab-${t}`);
             if (btn) {
@@ -350,7 +358,7 @@
             }
         });
 
-        // 3. เปลี่ยนหัวข้อ Label
+        // 4. เปลี่ยนหัวข้อ Label
         const labels = {
             weekday: 'จำนวนพยาบาลต่อเวร (วันจันทร์-ศุกร์)',
             weekend: 'จำนวนพยาบาลต่อเวร (เสาร์-อาทิตย์)',
@@ -358,7 +366,7 @@
         };
         document.getElementById('quota-label').innerText = labels[type];
 
-        // 4. ดึงค่าของประเภทวันที่เพิ่งเลือกมาโชว์ที่ช่อง Input
+        // 5. ดึงค่าจากหน่วยความจำมาโชว์ที่ช่อง Input (ใช้ค่าที่มีอยู่จริง)
         document.getElementById('quotaMorning').value = allQuotas[type].morning;
         document.getElementById('quotaAfternoon').value = allQuotas[type].afternoon;
         document.getElementById('quotaNight').value = allQuotas[type].night;
@@ -378,41 +386,28 @@
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // ฟังก์ชันช่วยแปลง String เป็น Object แบบปลอดภัย
                 const parseQuota = (data) => {
                     if (!data) return null;
                     try {
-                        // ถ้าเป็น Object อยู่แล้วก็ส่งคืนเลย ถ้าเป็น String ให้ Parse
                         let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                        // ดักควาย: บางทีมัน Parse แล้วยังได้ String ซ้อน (เหมือนใน DB คุณ) ให้ Parse อีกรอบ
                         if (typeof parsed === 'string') parsed = JSON.parse(parsed);
                         return parsed;
-                    } catch (e) {
-                        console.error("Parse error:", e);
-                        return null;
-                    }
+                    } catch (e) { return null; }
                 };
 
-                // 1. ดึงค่า Weekday (จันทร์-ศุกร์)
-                const weekday = parseQuota(s.weekdayQuotas);
-                if (weekday) {
-                    allQuotas.weekday = weekday;
-                } else {
-                    // Fallback กรณีไม่มีข้อมูลใหม่ ให้ดึงจาก QuotaMorning/Afternoon/Night เดิม
-                    allQuotas.weekday = {
-                        morning: s.morning || 0,
-                        afternoon: s.afternoon || 0,
-                        night: s.night || 0
-                    };
-                }
-
-                // 2. ดึงค่า Weekend (เสาร์-อาทิตย์)
+                // 1. โหลดข้อมูลลงตัวแปรหน่วยความจำ
+                allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
                 allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
-
-                // 3. ดึงค่า Holiday (นักขัตฤกษ์)
                 allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
 
-                // ✅ อัปเดตหน้าจอทันทีหลังจากโหลดข้อมูลเสร็จ
+                // 2. 🔥 บังคับยัดค่าใส่หน้าจอทันทีก่อนจะทำอย่างอื่น 
+                // (เพื่อให้หน้าจอมีค่า "ก่อน" ที่ switchDayType จะแอบไปเซฟทับ)
+                const current = allQuotas[currentDayType];
+                document.getElementById('quotaMorning').value = current.morning;
+                document.getElementById('quotaAfternoon').value = current.afternoon;
+                document.getElementById('quotaNight').value = current.night;
+
+                // 3. สั่งอัปเดต UI (สีปุ่ม/หัวข้อ)
                 switchDayType(currentDayType);
 
                 if (s.deadline) {
@@ -422,7 +417,6 @@
 
             updatePeriodUI(status.isOpen);
 
-            // จัดการสถานะปุ่ม
             const btnSave = document.getElementById('btn-save-settings');
             if (status.isOpen === true) {
                 btnSave.disabled = true;
@@ -432,9 +426,7 @@
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
             }
 
-        } catch (e) {
-            console.error("Load Data Error:", e);
-        }
+        } catch (e) { console.error("Load Data Error:", e); }
     }
     // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
     async function togglePeriod(status) {
