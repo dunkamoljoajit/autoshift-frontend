@@ -388,18 +388,15 @@
             ]);
 
             const settings = await setRes.json();
-            const windowStatus = await statRes.json(); // สถานะหน้าต่างเวลา (ของเดิม)
-
+            
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // --- [จุดที่เพิ่ม/แก้ไข] ---
-                // ดึงค่า SystemStatus ที่เราเพิ่งเซฟลง DB ไปผ่าน save-settings
-                // ถ้าใน DB เป็น 'Open' ให้ถือว่าระบบเปิด
+                // --- [จุดสำคัญ] ดึงค่าจาก Key ที่เราเพิ่งเซฟลง DB ---
+                // ตรวจสอบว่าใน DB เก็บชื่อ SystemStatus (S ตัวใหญ่) หรือไม่
                 const isSystemOpen = s.SystemStatus === 'Open'; 
                 
                 // 1. ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
-                // ใช้ค่า isSystemOpen ที่ดึงมาจาก DB แทน status.isOpen
                 if (s.deadline && isSystemOpen) {
                     const today = moment().startOf('day');
                     const deadlineDate = moment(s.deadline).startOf('day');
@@ -424,6 +421,7 @@
                 allQuotas.weekend = parseQuota(s.weekendQuotas);
                 allQuotas.holiday = parseQuota(s.holidayQuotas);
 
+                // แสดงผล Quota ปัจจุบัน
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
@@ -433,7 +431,7 @@
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
 
-                // --- หัวใจสำคัญ: ส่งค่าสถานะจาก DB ไปควบคุม UI ---
+                // --- [ผลลัพธ์] สั่งให้ UI แสดงผล Open และ Lock ช่องกรอกทันที ---
                 syncLockStatus(isSystemOpen); 
             }
 
@@ -528,7 +526,7 @@
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: deadline,
-            status: statusToSend // <--- ส่งค่าสถานะ Open/Closed ไปด้วย
+            status: "Open" // <--- ส่งค่าสถานะ Open ไปด้วย
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
