@@ -388,13 +388,19 @@
             ]);
 
             const settings = await setRes.json();
-            const status = await statRes.json(); 
+            const windowStatus = await statRes.json(); // สถานะหน้าต่างเวลา (ของเดิม)
 
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
+                // --- [จุดที่เพิ่ม/แก้ไข] ---
+                // ดึงค่า SystemStatus ที่เราเพิ่งเซฟลง DB ไปผ่าน save-settings
+                // ถ้าใน DB เป็น 'Open' ให้ถือว่าระบบเปิด
+                const isSystemOpen = s.SystemStatus === 'Open'; 
+                
                 // 1. ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
-                if (s.deadline && status.isOpen) {
+                // ใช้ค่า isSystemOpen ที่ดึงมาจาก DB แทน status.isOpen
+                if (s.deadline && isSystemOpen) {
                     const today = moment().startOf('day');
                     const deadlineDate = moment(s.deadline).startOf('day');
                     if (today.isAfter(deadlineDate)) {
@@ -403,7 +409,7 @@
                     }
                 }
 
-                // 2. จัดการ Quota Data
+                // 2. จัดการ Quota Data (เหมือนเดิม)
                 const parseQuota = (data) => {
                     if (!data) return { morning: 0, afternoon: 0, night: 0 };
                     let parsed = typeof data === 'string' ? JSON.parse(data) : data;
@@ -418,7 +424,6 @@
                 allQuotas.weekend = parseQuota(s.weekendQuotas);
                 allQuotas.holiday = parseQuota(s.holidayQuotas);
 
-                // แสดงผลตาม Tab ปัจจุบัน
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
@@ -427,10 +432,10 @@
                 if (s.deadline) {
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
-            }
 
-            // --- หัวใจสำคัญ: ส่งค่าสถานะไปควบคุม UI ทั้งหมด ---
-            syncLockStatus(status.isOpen);
+                // --- หัวใจสำคัญ: ส่งค่าสถานะจาก DB ไปควบคุม UI ---
+                syncLockStatus(isSystemOpen); 
+            }
 
         } catch (e) { 
             console.error("Load Data Error:", e); 
@@ -498,7 +503,7 @@
     async function saveSettings(e) {
         if (e) e.preventDefault();
         
-        // 1. เก็บค่าจากหน้าจอปัจจุบันลง allQuotas ก่อนบันทึก
+        // 1. ดึงค่าจากหน้าจอเก็บลง allQuotas เหมือนเดิม
         const m = document.getElementById('quotaMorning').value;
         const a = document.getElementById('quotaAfternoon').value;
         const n = document.getElementById('quotaNight').value;
@@ -512,12 +517,18 @@
         const deadline = document.getElementById('deadlineDate').value;
         const token = localStorage.getItem('token');
 
-        // เตรียม Payload สำหรับส่งไป Backend
+        // --- จุดที่ต้องเพิ่ม: ดึงสถานะปัจจุบันจากปุ่ม Toggle ---
+        // เช็คว่าปุ่ม btn-open มี class 'toggle-active-open' อยู่หรือไม่
+        const isNowOpen = document.getElementById('btn-open').classList.contains('toggle-active-open');
+        const statusToSend = isNowOpen ? 'Open' : 'Closed';
+
+        // 2. เตรียม Payload (เพิ่ม field 'status' เข้าไป)
         const payload = {
             weekdayQuotas: allQuotas.weekday,
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
-            deadline: deadline
+            deadline: deadline,
+            status: statusToSend // <--- ส่งค่าสถานะ Open/Closed ไปด้วย
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -534,8 +545,8 @@
 
             const data = await res.json();
             if (data.success) {
-                Swal.fire({ icon: 'success', title: 'บันทึกการตั้งค่าเรียบร้อยแล้ว', timer: 1500 });
-                loadAllData(); // โหลดข้อมูลใหม่เพื่ออัปเดตสถานะปุ่ม
+                Swal.fire({ icon: 'success', title: 'บันทึกและอัปเดตสถานะเรียบร้อย', timer: 1500 });
+                await loadAllData(); // โหลดข้อมูลใหม่เพื่อ Re-sync UI ทั้งหมด
             } else {
                 throw new Error(data.message || 'บันทึกไม่สำเร็จ');
             }
@@ -544,38 +555,25 @@
             Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
         }
     }
-    // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
-    async function togglePeriod(status) {
-        const action = status === 'Open' ? 'เปิด' : 'ปิด';
-        const result = await Swal.fire({ 
-            title: `ยืนยันการ ${action} ระบบ?`, 
-            text: status === 'Open' ? "พยาบาลจะเริ่มส่งข้อจำกัดได้ และคุณจะแก้ไขค่า Quota ไม่ได้" : "คุณจะสามารถแก้ไขค่า Quota ได้ตามปกติ",
-            icon: 'warning', 
-            showCancelButton: true,
-            confirmButtonColor: '#7c3aed'
-        });
-
-        if(!result.isConfirmed) return;
-
-        try {
-            const res = await fetch(`${API_URL}/api/admin/toggle-window`, { 
-                method: 'POST', 
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
-                },
-                body: JSON.stringify({ status }) 
-            });
-            const data = await res.json();
-            if(data.success) {
-                await loadAllData(); // โหลดข้อมูลใหม่เพื่อ Update UI และล็อกปุ่มบันทึกอัตโนมัติ
-                Swal.fire({ icon: 'success', title: `ทำการ${action}ระบบแล้ว`, timer: 1000, showConfirmButton: false });
-            }
-        } catch (e) { 
-            console.error(e); 
-            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด' });
+        // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
+        function togglePeriod(status) {
+            // ฟังก์ชันนี้จะทำหน้าที่แค่ "สลับสีปุ่ม" บนหน้าจอเพื่อให้ User เลือก
+            // แต่จะยังไม่บันทึกจนกว่าจะกดปุ่ม "บันทึกการตั้งค่า"
+            
+            const isOpen = (status === 'Open');
+            
+            // อัปเดต UI ปุ่มสลับ
+            const btnOpen = document.getElementById('btn-open');
+            const btnClosed = document.getElementById('btn-closed');
+            
+            btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
+            btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
+            
+            // อัปเดตข้อความบอกสถานะเบื้องต้น
+            document.getElementById('period-status-text').innerText = isOpen 
+                ? "คุณเลือก: เปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)" 
+                : "คุณเลือก: ปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)";
         }
-    }
 
     function updatePeriodUI(isOpen) {
         const btnOpen = document.getElementById('btn-open');
