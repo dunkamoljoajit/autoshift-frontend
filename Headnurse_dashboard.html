@@ -497,54 +497,43 @@
         const btnClosed = document.getElementById('btn-closed');
         const btnSave = document.getElementById('btn-save-settings');
         const statusText = document.getElementById('period-status-text');
-        
-        // ดึง Element ปุ่มจัดเวร
         const btnReal = document.getElementById('btn-generate-real');
         const btnLock = document.getElementById('btn-generate-locked');
-        
-        // ดึงกลุ่มช่องกรอกตัวเลขโวต้าทั้งหมด
         const quotaInputs = document.querySelectorAll('.stat-input');
 
         if (isOpen) {
-            // --- [สถานะ OPEN]: ปิดรับการแก้ไข ---
+            // --- [OPEN]: ล็อกการแก้ไข ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-active-open';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-inactive';
             if (statusText) statusText.innerText = "ขณะนี้ระบบเปิดอยู่ (ล็อกการแก้ไขโควต้า)";
 
-            // 1. ล็อกปุ่มบันทึก
             btnSave.disabled = true;
             btnSave.style.background = "#94a3b8"; 
             btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
             
-            // 2. ล็อกช่อง Input ทุกช่อง (Read Only)
             quotaInputs.forEach(input => {
                 input.readOnly = true;
-                input.classList.add('bg-gray-100'); // เปลี่ยนสีพื้นหลังให้ดูว่าแก้ไม่ได้
+                input.style.backgroundColor = "#f3f4f6"; // เพิ่มสีพื้นหลังเทาให้ชัดเจน
             });
 
-            // 3. ซ่อนปุ่มจัดเวร
             if (btnReal) btnReal.classList.add('hidden');
             if (btnLock) btnLock.classList.remove('hidden');
 
         } else {
-            // --- [สถานะ CLOSED]: เปิดให้แก้ไขโควต้าและพร้อมจัดเวร ---
+            // --- [CLOSED]: แก้โควต้าได้ + ปุ่มจัดเวรเผยขึ้นมา ---
             if (btnOpen) btnOpen.className = 'toggle-btn toggle-inactive';
             if (btnClosed) btnClosed.className = 'toggle-btn toggle-active-closed';
             if (statusText) statusText.innerText = "ระบบปิดแล้ว (คุณสามารถแก้ไขโควต้าและเริ่มจัดเวรได้)";
 
-            // 1. ปลดล็อกปุ่มบันทึก
             btnSave.disabled = false;
-            btnSave.style.background = ""; // กลับเป็นสีม่วง Gradient ตาม CSS หลัก
+            btnSave.style.background = ""; // กลับเป็นม่วง Gradient ตาม CSS
             btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่าใหม่';
             
-            // 2. ปลดล็อกช่อง Input ให้พิมพ์ได้ (Editable)
             quotaInputs.forEach(input => {
                 input.readOnly = false;
-                input.classList.remove('bg-gray-100');
-                input.classList.add('bg-white'); // เปลี่ยนสีให้รู้ว่าพิมพ์ได้แล้ว
+                input.style.backgroundColor = "#ffffff"; // สีขาวเพื่อให้รู้ว่าพิมพ์ได้
             });
 
-            // 3. เผยปุ่มจัดเวรสีชมพู (เผยขึ้นมาให้กดไปหน้าประมวลผล)
             if (btnReal) btnReal.classList.remove('hidden');
             if (btnLock) btnLock.classList.add('hidden');
         }
@@ -604,25 +593,23 @@
             Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
         }
     }
-        // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
-        function togglePeriod(status) {
-            // ฟังก์ชันนี้จะทำหน้าที่แค่ "สลับสีปุ่ม" บนหน้าจอเพื่อให้ User เลือก
-            // แต่จะยังไม่บันทึกจนกว่าจะกดปุ่ม "บันทึกการตั้งค่า"
+    // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
+    function togglePeriod(status) {
+        const isOpen = (status === 'Open');
+        const btnOpen = document.getElementById('btn-open');
+        const btnClosed = document.getElementById('btn-closed');
             
-            const isOpen = (status === 'Open');
-            
-            // อัปเดต UI ปุ่มสลับ
-            const btnOpen = document.getElementById('btn-open');
-            const btnClosed = document.getElementById('btn-closed');
-            
-            btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
-            btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
-            
-            // อัปเดตข้อความบอกสถานะเบื้องต้น
-            document.getElementById('period-status-text').innerText = isOpen 
+        btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
+        btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
+
+        document.getElementById('period-status-text').innerText = isOpen 
                 ? "คุณเลือก: เปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)" 
                 : "คุณเลือก: ปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)";
-        }
+
+        // --- ส่วนที่ต้องเพิ่ม ---
+        syncLockStatus(isOpen); 
+        // -----------------------
+    }
 
     function updatePeriodUI(isOpen) {
         const btnOpen = document.getElementById('btn-open');
