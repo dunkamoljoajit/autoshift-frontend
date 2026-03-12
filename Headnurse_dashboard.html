@@ -378,19 +378,41 @@
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // --- แก้จุดนี้ให้ดึงข้อมูลได้ทั้ง 2 ระบบ ---
-                // เช็คก่อนว่ามี weekdayQuotas ไหม ถ้าไม่มี (เช่น ข้อมูลเก่า) ให้เอาค่า morning, afternoon, night มาใช้แทน
-                allQuotas.weekday = s.weekdayQuotas || { 
-                    morning: s.morning || 0, 
-                    afternoon: s.afternoon || 0, 
-                    night: s.night || 0 
+                // ฟังก์ชันช่วยแปลง String เป็น Object แบบปลอดภัย
+                const parseQuota = (data) => {
+                    if (!data) return null;
+                    try {
+                        // ถ้าเป็น Object อยู่แล้วก็ส่งคืนเลย ถ้าเป็น String ให้ Parse
+                        let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                        // ดักควาย: บางทีมัน Parse แล้วยังได้ String ซ้อน (เหมือนใน DB คุณ) ให้ Parse อีกรอบ
+                        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+                        return parsed;
+                    } catch (e) {
+                        console.error("Parse error:", e);
+                        return null;
+                    }
                 };
 
-                // สำหรับวันหยุด ถ้ายังไม่มีข้อมูล ให้ใช้ค่าเดียวกับวันธรรมดาไปก่อน (กันเลข 0)
-                allQuotas.weekend = s.weekendQuotas || { ...allQuotas.weekday };
-                allQuotas.holiday = s.holidayQuotas || { ...allQuotas.weekday };
-                
-                // สั่งแสดงผลหน้าจอ
+                // 1. ดึงค่า Weekday (จันทร์-ศุกร์)
+                const weekday = parseQuota(s.weekdayQuotas);
+                if (weekday) {
+                    allQuotas.weekday = weekday;
+                } else {
+                    // Fallback กรณีไม่มีข้อมูลใหม่ ให้ดึงจาก QuotaMorning/Afternoon/Night เดิม
+                    allQuotas.weekday = {
+                        morning: s.morning || 0,
+                        afternoon: s.afternoon || 0,
+                        night: s.night || 0
+                    };
+                }
+
+                // 2. ดึงค่า Weekend (เสาร์-อาทิตย์)
+                allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
+
+                // 3. ดึงค่า Holiday (นักขัตฤกษ์)
+                allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
+
+                // ✅ อัปเดตหน้าจอทันทีหลังจากโหลดข้อมูลเสร็จ
                 switchDayType(currentDayType);
 
                 if (s.deadline) {
@@ -400,6 +422,7 @@
 
             updatePeriodUI(status.isOpen);
 
+            // จัดการสถานะปุ่ม
             const btnSave = document.getElementById('btn-save-settings');
             if (status.isOpen === true) {
                 btnSave.disabled = true;
@@ -409,9 +432,10 @@
                 btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
             }
 
-        } catch (e) { console.error("Load Data Error:", e); }
+        } catch (e) {
+            console.error("Load Data Error:", e);
+        }
     }
-
     // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
     async function togglePeriod(status) {
         const action = status === 'Open' ? 'เปิด' : 'ปิด';
