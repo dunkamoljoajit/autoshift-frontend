@@ -180,49 +180,56 @@
         const resultSec = document.getElementById('result-section');
         const stepText = document.getElementById('loading-step');
 
-        // ล้างสถานะการแสดงผลเดิม
+        // ส่วนประกอบหน้าจอที่ต้องควบคุม
+        const successCard = document.querySelector('.bg-emerald-50'); // การ์ดสีเขียว
+        const incompleteCard = document.getElementById('incomplete-card'); // การ์ดสีแดง
+        const listCont = document.getElementById('missing-list-container');
+
+        // 1. เริ่มต้น: ซ่อนทุกอย่างก่อน
         btnArea.classList.add('hidden');
         resultSec.classList.add('hidden');
-        document.getElementById('incomplete-card').classList.add('hidden');
-        document.getElementById('missing-list-container').classList.add('hidden');
-        
+        successCard.classList.add('hidden'); 
+        incompleteCard.classList.add('hidden');
+        listCont.classList.add('hidden');
         loadArea.classList.remove('hidden');
 
+        // จำลองขั้นตอนประมวลผล
         const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
         for (let step of steps) {
             stepText.innerText = step;
-            await new Promise(r => setTimeout(r, 800));
+            await new Promise(r => setTimeout(r, 600));
         }
 
         try {
-            const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, {
-                method: 'POST'
-            });
+            const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, { method: 'POST' });
             const data = await res.json();
             
             loadArea.classList.add('hidden');
             resultSec.classList.remove('hidden');
 
             if (data.success) {
-                // ตรวจสอบว่ามีเวรที่จัดไม่ลงตัวหรือไม่
+                // เช็คว่ามีกะที่ขาดไหม (เช่น กะดึกที่บอกว่าขาด 2 เวร)
                 const hasIncomplete = data.incompleteShifts && data.incompleteShifts.length > 0;
 
                 if (hasIncomplete) {
-                    // กรณีมีกะที่ขาด (เช่น กะดึกคนไม่พอ)
+                    // --- เคส: มีเวรขาด ---
+                    // ปิดการ์ดสีเขียวทิ้งไปเลย ไม่ต้องแสดง!
+                    successCard.classList.add('hidden');
+                    
+                    // แสดงการแจ้งเตือนสีส้ม
                     Swal.fire({
                         icon: 'warning',
-                        title: 'จัดเวรเสร็จสิ้นแต่ไม่สมบูรณ์',
-                        text: `พบกะที่พยาบาลไม่เพียงพอจำนวน ${data.incompleteShifts.length} รายการ`,
+                        title: 'จัดเวรไม่ครบถ้วน!',
+                        text: `พบกะที่พยาบาลไม่พอ ${data.incompleteShifts.length} กะ (เช่น เวรดึก)`,
                         confirmButtonColor: '#f59e0b'
                     });
+                    
+                    // เรียกฟังก์ชันวาดรายการสีแดง
                     renderIncomplete(data.incompleteShifts);
                 } else {
-                    // กรณีครบถ้วน 100%
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'จัดเวรสำเร็จครบถ้วน!', 
-                        timer: 2000 
-                    });
+                    // --- เคส: ครบถ้วน 100% ---
+                    successCard.classList.remove('hidden'); // แสดงสีเขียว
+                    Swal.fire({ icon: 'success', title: 'จัดเวรสำเร็จครบถ้วน!', timer: 2000 });
                 }
             } else { 
                 throw new Error(data.message); 
