@@ -387,37 +387,35 @@
             ]);
 
             const settings = await setRes.json();
-            const status = await statRes.json();
+            const status = await statRes.json(); // status.isOpen คือตัวตัดสินทุกอย่าง
 
             if (settings.success && settings.settings) {
                 const s = settings.settings;
 
-                // 1. ตรวจสอบ Deadline อัตโนมัติ (ใช้ Moment.js)
+                // 1. ตรวจสอบ Deadline (ใช้ Moment.js)
                 if (s.deadline && status.isOpen) {
                     const today = moment().startOf('day');
                     const deadlineDate = moment(s.deadline).startOf('day');
-                    // ถ้าวันนี้ "เลย" วันที่กำหนด (After) ให้สั่งปิดระบบทันที
                     if (today.isAfter(deadlineDate)) {
                         await autoCloseSystem(); 
                         return; 
                     }
                 }
 
+                // 2. จัดการ Quota Data
                 const parseQuota = (data) => {
                     if (!data) return null;
                     try {
                         let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-                        return parsed;
+                        return (typeof parsed === 'string') ? JSON.parse(parsed) : parsed;
                     } catch (e) { return null; }
                 };
 
-                // 2. โหลดข้อมูล Quota ลงตัวแปร
                 allQuotas.weekday = parseQuota(s.weekdayQuotas) || { morning: s.morning || 0, afternoon: s.afternoon || 0, night: s.night || 0 };
                 allQuotas.weekend = parseQuota(s.weekendQuotas) || { ...allQuotas.weekday };
                 allQuotas.holiday = parseQuota(s.holidayQuotas) || { ...allQuotas.weekday };
 
-                // 3. ยัดค่าลง Input ตามประเภทวันที่เลือกอยู่
+                // แสดงผลตามหน้าปัจจุบัน
                 const current = allQuotas[currentDayType];
                 document.getElementById('quotaMorning').value = current.morning;
                 document.getElementById('quotaAfternoon').value = current.afternoon;
@@ -426,57 +424,51 @@
                 if (s.deadline) {
                     document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
                 }
-
-                // เรียก switchDayType เพื่อจัดการ UI ของ Tab
                 switchDayType(currentDayType);
             }
 
-            // 4. จัดการสถานะปุ่มและ Input ตามสถานะการ "เปิดระบบ" (isOpen)
-            const btnSave = document.getElementById('btn-save-settings');
-            const allInputs = document.querySelectorAll('.stat-input, #deadlineDate');
-            
-            if (status.isOpen === true) {
-                // --- กรณีระบบเปิด (OPEN) ---
-                btnSave.disabled = true;
-                btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
-                btnSave.style.background = "#94a3b8"; // เปลี่ยนเป็นสีเทาเพื่อให้รู้ว่า Lock
-
-                // ล็อกช่องกรอกข้อมูลทั้งหมด
-                allInputs.forEach(input => {
-                    input.disabled = true;
-                    input.style.backgroundColor = "#f1f5f9"; // ทำพื้นหลังให้ดูเป็น Read-only
-                });
-            } else {
-                // --- กรณีระบบปิด (CLOSED) ---
-                btnSave.disabled = false;
-                btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
-                btnSave.style.background = ""; // กลับไปใช้สี Gradient ตาม CSS เดิม
-
-                allInputs.forEach(input => {
-                    input.disabled = false;
-                    input.style.backgroundColor = "";
-                });
-            }
-
-            // 5. อัปเดตปุ่มเปิด/ปิด และ ปุ่มสร้างตาราง
-            updatePeriodUI(status.isOpen);
+            // --- จุดสำคัญ: ผูกสถานะปุ่มบันทึกเข้ากับสถานะเปิดปิดระบบ ---
+            syncLockStatus(status.isOpen);
 
         } catch (e) { 
             console.error("Load Data Error:", e); 
         }
     }
 
-    // ฟังก์ชันเสริมสำหรับปิดระบบอัตโนมัติ
-    async function autoCloseSystem() {
-        try {
-            await fetch(`${API_URL}/api/admin/toggle-window`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                body: JSON.stringify({ status: 'Closed' }) 
+    // ฟังก์ชันใหม่สำหรับคุมการ Lock ทุกอย่างบนหน้าจอ
+    function syncLockStatus(isOpen) {
+        const btnSave = document.getElementById('btn-save-settings');
+        const allInputs = document.querySelectorAll('.stat-input, #deadlineDate');
+        const tabs = document.querySelectorAll('#tab-weekday, #tab-weekend, #tab-holiday');
+
+        if (isOpen) {
+            // ถ้าสถานะคือ OPEN -> ล็อกปุ่มบันทึก และช่องกรอกข้อมูล
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<i class="fas fa-lock"></i> ระบบเปิดอยู่ (แก้ไขไม่ได้)';
+            btnSave.style.background = "#94a3b8"; // สีเทา
+            btnSave.style.opacity = "0.7";
+
+            allInputs.forEach(input => {
+                input.disabled = true;
+                input.style.backgroundColor = "#f3f4f6";
+                input.style.cursor = "not-allowed";
             });
-            // โหลดข้อมูลใหม่หลังจากปิดระบบแล้ว
-            window.location.reload(); 
-        } catch (e) { console.error("Auto close failed", e); }
+        } else {
+            // ถ้าสถานะคือ CLOSED -> ปลดล็อกให้แก้ไขและบันทึกได้
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="fas fa-save"></i> บันทึกการตั้งค่า';
+            btnSave.style.background = ""; // กลับเป็นสีม่วงตาม CSS
+            btnSave.style.opacity = "1";
+
+            allInputs.forEach(input => {
+                input.disabled = false;
+                input.style.backgroundColor = "";
+                input.style.cursor = "auto";
+            });
+        }
+
+        // อัปเดต UI อื่นๆ (ปุ่ม OPEN/CLOSED และปุ่มสร้างตาราง)
+        updatePeriodUI(isOpen);
     }
     async function saveSettings(e) {
         if (e) e.preventDefault();
@@ -547,13 +539,17 @@
         const btnOpen = document.getElementById('btn-open');
         const btnClosed = document.getElementById('btn-closed');
         const statusText = document.getElementById('period-status-text');
+        const btnReal = document.getElementById('btn-generate-real');
+        const btnLock = document.getElementById('btn-generate-locked');
+
         if(btnOpen && btnClosed) {
             btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
             btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
         }
+        
         if(statusText) statusText.innerText = isOpen ? "ขณะนี้ระบบเปิดรับข้อจำกัด" : "ระบบปิดรับข้อจำกัดแล้ว";
-        const btnReal = document.getElementById('btn-generate-real');
-        const btnLock = document.getElementById('btn-generate-locked');
+
+        // จัดการปุ่มสร้างตารางเวร (Open = Lock | Closed = Show)
         if (btnReal && btnLock) {
             btnReal.classList.toggle('hidden', isOpen);
             btnLock.classList.toggle('hidden', !isOpen);
