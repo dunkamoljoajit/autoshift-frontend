@@ -68,34 +68,35 @@
                 </div>
             </div>
 
-            <div id="result-section" class="hidden space-y-6">
-                <div class="flex items-center gap-4">
-                    <div class="h-px bg-gray-200 flex-1"></div>
-                    <span class="text-gray-400 text-sm font-medium">ผลลัพธ์การจัดเวร</span>
-                    <div class="h-px bg-gray-200 flex-1"></div>
-                </div>
+          <div id="result-section" class="hidden space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="h-px bg-gray-200 flex-1"></div>
+                <span class="text-gray-400 text-sm font-medium">ผลลัพธ์การจัดเวร</span>
+                <div class="h-px bg-gray-200 flex-1"></div>
+            </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-center gap-4">
-                        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-emerald-800">จัดเวรสำเร็จ</h4>
-                            <p class="text-xs text-emerald-600">เวรส่วนใหญ่ถูกจัดสรรเรียบร้อย</p>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="success-card" class="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-center gap-4">
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
+                        <i class="fas fa-check-circle"></i>
                     </div>
-
-                    <div id="incomplete-card" class="bg-rose-50 border border-rose-100 p-5 rounded-2xl flex items-center gap-4 hidden">
-                        <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-rose-800">เวรไม่ครบ <span id="missing-count">0</span> กะ</h4>
-                            <p class="text-xs text-rose-600">โปรดตรวจสอบและจัดการด้วยตนเอง</p>
-                        </div>
+                    <div>
+                        <h4 class="font-bold text-emerald-800">จัดเวรสำเร็จ</h4>
+                        <p class="text-xs text-emerald-600">เวรส่วนใหญ่ถูกจัดสรรเรียบร้อย</p>
                     </div>
                 </div>
+
+                <div id="incomplete-card" class="bg-rose-50 border border-rose-100 p-5 rounded-2xl flex items-center gap-4 hidden">
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-rose-800">เวรไม่ครบ <span id="missing-count">0</span> กะ</h4>
+                        <p class="text-xs text-rose-600">โปรดตรวจสอบและจัดการด้วยตนเอง</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
                 <div id="missing-list-container" class="hidden">
                     <h3 class="text-sm font-bold text-gray-500 mb-3 ml-2">รายการวันที่คนไม่พอ:</h3>
@@ -180,20 +181,22 @@
         const resultSec = document.getElementById('result-section');
         const stepText = document.getElementById('loading-step');
 
-        // ส่วนประกอบหน้าจอที่ต้องควบคุม
-        const successCard = document.querySelector('.bg-emerald-50'); // การ์ดสีเขียว
-        const incompleteCard = document.getElementById('incomplete-card'); // การ์ดสีแดง
+        // ดึงส่วนประกอบหน้าจอที่ต้องควบคุม (เปลี่ยนมาใช้ ID เพื่อความแม่นยำ)
+        const successCard = document.getElementById('success-card'); 
+        const incompleteCard = document.getElementById('incomplete-card');
         const listCont = document.getElementById('missing-list-container');
 
-        // 1. เริ่มต้น: ซ่อนทุกอย่างก่อน
+        // 1. เริ่มต้น: ซ่อนทุกอย่างก่อนเพื่อล้างสถานะเดิม
         btnArea.classList.add('hidden');
         resultSec.classList.add('hidden');
-        successCard.classList.add('hidden'); 
-        incompleteCard.classList.add('hidden');
-        listCont.classList.add('hidden');
+        
+        if (successCard) successCard.classList.add('hidden'); 
+        if (incompleteCard) incompleteCard.classList.add('hidden');
+        if (listCont) listCont.classList.add('hidden');
+        
         loadArea.classList.remove('hidden');
 
-        // จำลองขั้นตอนประมวลผล
+        // จำลองขั้นตอนประมวลผลให้ดูสมจริง
         const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
         for (let step of steps) {
             stepText.innerText = step;
@@ -208,19 +211,20 @@
             resultSec.classList.remove('hidden');
 
             if (data.success) {
-                // เช็คว่ามีกะที่ขาดไหม (เช่น กะดึกที่บอกว่าขาด 2 เวร)
+                // เช็คว่ามีกะที่พยาบาลไม่พอหรือไม่ (เช่น กะดึกขาด 2 เวร)
                 const hasIncomplete = data.incompleteShifts && data.incompleteShifts.length > 0;
 
                 if (hasIncomplete) {
-                    // --- เคส: มีเวรขาด ---
-                    // ปิดการ์ดสีเขียวทิ้งไปเลย ไม่ต้องแสดง!
-                    successCard.classList.add('hidden');
+                    // --- เคส: มีเวรขาด (ไม่สมบูรณ์) ---
                     
-                    // แสดงการแจ้งเตือนสีส้ม
+                    // สั่งซ่อนการ์ดสีเขียว "สำเร็จ" ทันที ไม่ให้แสดงหลอกตา
+                    if (successCard) successCard.classList.add('hidden');
+                    
+                    // แสดงการแจ้งเตือนด้วย Swal สีส้ม (Warning)
                     Swal.fire({
                         icon: 'warning',
                         title: 'จัดเวรไม่ครบถ้วน!',
-                        text: `พบกะที่พยาบาลไม่พอ ${data.incompleteShifts.length} กะ (เช่น เวรดึก)`,
+                        text: `พบกะที่พยาบาลไม่พอ ${data.incompleteShifts.length} กะ (โปรดเช็กเวรดึก)`,
                         confirmButtonColor: '#f59e0b'
                     });
                     
@@ -228,8 +232,16 @@
                     renderIncomplete(data.incompleteShifts);
                 } else {
                     // --- เคส: ครบถ้วน 100% ---
-                    successCard.classList.remove('hidden'); // แสดงสีเขียว
-                    Swal.fire({ icon: 'success', title: 'จัดเวรสำเร็จครบถ้วน!', timer: 2000 });
+                    
+                    // แสดงการ์ดสีเขียว และซ่อนการ์ดแดง
+                    if (successCard) successCard.classList.remove('hidden'); 
+                    if (incompleteCard) incompleteCard.classList.add('hidden');
+                    
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'จัดเวรสำเร็จครบถ้วน!', 
+                        timer: 2000 
+                    });
                 }
             } else { 
                 throw new Error(data.message); 
@@ -240,7 +252,6 @@
             loadArea.classList.add('hidden');
         }
     }
-
         function renderIncomplete(incomplete) {
             const card = document.getElementById('incomplete-card');
             const listCont = document.getElementById('missing-list-container');
