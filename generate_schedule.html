@@ -76,7 +76,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div id="success-card" class="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-center gap-4">
+                <div id="success-card" class="hidden bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-center gap-4">
                     <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
                         <i class="fas fa-check-circle"></i>
                     </div>
@@ -85,7 +85,6 @@
                         <p class="text-xs text-emerald-600">เวรส่วนใหญ่ถูกจัดสรรเรียบร้อย</p>
                     </div>
                 </div>
-
                 <div id="incomplete-card" class="bg-rose-50 border border-rose-100 p-5 rounded-2xl flex items-center gap-4 hidden">
                     <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -176,82 +175,88 @@
         }
 
        async function startGeneration() {
-        const btnArea = document.getElementById('action-area');
-        const loadArea = document.getElementById('loading-area');
-        const resultSec = document.getElementById('result-section');
-        const stepText = document.getElementById('loading-step');
+            const btnArea = document.getElementById('action-area');
+            const loadArea = document.getElementById('loading-area');
+            const resultSec = document.getElementById('result-section');
+            const stepText = document.getElementById('loading-step');
 
-        // ดึงส่วนประกอบหน้าจอที่ต้องควบคุม (เปลี่ยนมาใช้ ID เพื่อความแม่นยำ)
-        const successCard = document.getElementById('success-card'); 
-        const incompleteCard = document.getElementById('incomplete-card');
-        const listCont = document.getElementById('missing-list-container');
+            // เรียกผ่าน ID เท่านั้น ห้ามใช้ querySelector('.bg-emerald-50')
+            const successCard = document.getElementById('success-card'); 
+            const incompleteCard = document.getElementById('incomplete-card');
+            const listCont = document.getElementById('missing-list-container');
 
-        // 1. เริ่มต้น: ซ่อนทุกอย่างก่อนเพื่อล้างสถานะเดิม
-        btnArea.classList.add('hidden');
-        resultSec.classList.add('hidden');
-        
-        if (successCard) successCard.classList.add('hidden'); 
-        if (incompleteCard) incompleteCard.classList.add('hidden');
-        if (listCont) listCont.classList.add('hidden');
-        
-        loadArea.classList.remove('hidden');
-
-        // จำลองขั้นตอนประมวลผลให้ดูสมจริง
-        const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
-        for (let step of steps) {
-            stepText.innerText = step;
-            await new Promise(r => setTimeout(r, 600));
-        }
-
-        try {
-            const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, { method: 'POST' });
-            const data = await res.json();
+            // 1. เคลียร์หน้าจอ: ซ่อนผลลัพธ์เก่าทั้งหมดทันทีที่กดปุ่ม
+            btnArea.classList.add('hidden');
+            resultSec.classList.add('hidden');
             
-            loadArea.classList.add('hidden');
-            resultSec.classList.remove('hidden');
+            // บังคับซ่อนแบบเด็ดขาด (ใช้สไตล์โดยตรง)
+            if (successCard) successCard.style.display = 'none';
+            if (incompleteCard) incompleteCard.classList.add('hidden');
+            if (listCont) listCont.classList.add('hidden');
+            
+            loadArea.classList.remove('hidden');
 
-            if (data.success) {
-                // เช็คว่ามีกะที่พยาบาลไม่พอหรือไม่ (เช่น กะดึกขาด 2 เวร)
-                const hasIncomplete = data.incompleteShifts && data.incompleteShifts.length > 0;
-
-                if (hasIncomplete) {
-                    // --- เคส: มีเวรขาด (ไม่สมบูรณ์) ---
-                    
-                    // สั่งซ่อนการ์ดสีเขียว "สำเร็จ" ทันที ไม่ให้แสดงหลอกตา
-                    if (successCard) successCard.classList.add('hidden');
-                    
-                    // แสดงการแจ้งเตือนด้วย Swal สีส้ม (Warning)
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'จัดเวรไม่ครบถ้วน!',
-                        text: `พบกะที่พยาบาลไม่พอ ${data.incompleteShifts.length} กะ (โปรดเช็กเวรดึก)`,
-                        confirmButtonColor: '#f59e0b'
-                    });
-                    
-                    // เรียกฟังก์ชันวาดรายการสีแดง
-                    renderIncomplete(data.incompleteShifts);
-                } else {
-                    // --- เคส: ครบถ้วน 100% ---
-                    
-                    // แสดงการ์ดสีเขียว และซ่อนการ์ดแดง
-                    if (successCard) successCard.classList.remove('hidden'); 
-                    if (incompleteCard) incompleteCard.classList.add('hidden');
-                    
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'จัดเวรสำเร็จครบถ้วน!', 
-                        timer: 2000 
-                    });
-                }
-            } else { 
-                throw new Error(data.message); 
+            // จำลองขั้นตอนประมวลผล
+            const steps = ["วิเคราะห์ข้อมูล...", "ตรวจสอบกฎ...", "เกลี่ยเวร...", "บันทึกข้อมูล..."];
+            for (let step of steps) {
+                stepText.innerText = step;
+                await new Promise(r => setTimeout(r, 600));
             }
-        } catch (err) {
-            Swal.fire('ผิดพลาด', err.message, 'error');
-            btnArea.classList.remove('hidden');
-            loadArea.classList.add('hidden');
+
+            try {
+                const res = await apiRequest(`${API_URL}/api/admin/generate-schedule`, { method: 'POST' });
+                const data = await res.json();
+                
+                loadArea.classList.add('hidden');
+                resultSec.classList.remove('hidden'); // แสดงส่วนผลลัพธ์
+
+                if (data.success) {
+                    // เช็คว่ามีเวรขาดไหม
+                    const hasIncomplete = data.incompleteShifts && data.incompleteShifts.length > 0;
+
+                    if (hasIncomplete) {
+                        // --- กรณีเวรดึกขาด หรือเวรไม่ครบ ---
+                        
+                        // ย้ำอีกครั้งว่า "ซ่อนสีเขียว"
+                        if (successCard) {
+                            successCard.style.setProperty('display', 'none', 'important');
+                            successCard.classList.add('hidden');
+                        }
+                        
+                        // "โชว์สีแดง"
+                        if (incompleteCard) {
+                            incompleteCard.classList.remove('hidden');
+                        }
+
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'จัดเวรไม่ครบถ้วน!',
+                            text: `พยาบาลไม่พอในบางกะ (ขาด ${data.incompleteShifts.length} รายการ)`,
+                            confirmButtonColor: '#f59e0b'
+                        });
+                        
+                        renderIncomplete(data.incompleteShifts);
+                    } else {
+                        // --- กรณีสำเร็จ 100% ---
+                        if (successCard) {
+                            successCard.style.display = 'flex'; // กลับมาแสดงเป็น Flex ตามปกติ
+                            successCard.classList.remove('hidden');
+                        }
+                        if (incompleteCard) {
+                            incompleteCard.classList.add('hidden');
+                        }
+                        
+                        Swal.fire({ icon: 'success', title: 'จัดเวรสำเร็จครบถ้วน!', timer: 2000 });
+                    }
+                } else { 
+                    throw new Error(data.message); 
+                }
+            } catch (err) {
+                Swal.fire('ผิดพลาด', err.message, 'error');
+                btnArea.classList.remove('hidden');
+                loadArea.classList.add('hidden');
+            }
         }
-    }
         function renderIncomplete(incomplete) {
             const card = document.getElementById('incomplete-card');
             const listCont = document.getElementById('missing-list-container');
