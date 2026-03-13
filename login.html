@@ -229,6 +229,9 @@
                                 window.location.href = 'Headnurse_dashboard.html'; 
                             } else if (user.RoleID === 2) {
                                 window.location.href = 'dashboard.html'; 
+                            } else if (user.RoleID === 3) {
+                            // ✅ เพิ่มตรงนี้: สำหรับ AEMT
+                            window.location.href = 'AEMT.html';
                             } else {
                                 Swal.fire('Error', 'ไม่มีสิทธิ์เข้าถึง', 'error');
                             }
