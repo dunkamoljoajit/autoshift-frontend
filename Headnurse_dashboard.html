@@ -430,6 +430,7 @@
         if (settings.success && settings.settings) {
             const s = settings.settings;
             selectedStatus = s.SystemStatus || 'Closed';
+            togglePeriod(selectedStatus);
 
             // 1. ตรวจสอบสถานะจาก Database (ดึงมาเป็นตัวแปรพักไว้ก่อน)
             let isSystemOpen = s.SystemStatus === 'Open'; 
@@ -564,7 +565,7 @@
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: document.getElementById('deadlineDate').value,
-            status: selectedStatus // ค่า 'Open' หรือ 'Closed' จากการกด Toggle
+            status:  'Open'// ค่า 'Open' หรือ 'Closed' จากการกด Toggle
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
