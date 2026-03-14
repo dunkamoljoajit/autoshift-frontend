@@ -549,10 +549,9 @@
     }
     async function saveSettings(e) {
         if (e) e.preventDefault();
-        
         const token = localStorage.getItem('token');
         
-        // ดึงค่าโควต้าจากหน้าจอลงตัวแปร allQuotas
+        // อัปเดตข้อมูลกะปัจจุบันเข้า memory ก่อนส่ง
         allQuotas[currentDayType] = {
             morning: parseInt(document.getElementById('quotaMorning').value) || 0,
             afternoon: parseInt(document.getElementById('quotaAfternoon').value) || 0,
@@ -564,7 +563,7 @@
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: document.getElementById('deadlineDate').value,
-            status: selectedStatus // <--- ใช้ค่าที่เราเลือกจากปุ่ม Toggle
+            status: selectedStatus // ค่า 'Open' หรือ 'Closed' จากการกด Toggle
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -581,11 +580,13 @@
 
             const data = await res.json();
             if (data.success) {
-                // 1. อัปเดต UI ทันทีตามสถานะที่เพิ่งบันทึกไป
-                const isNowOpen = (selectedStatus === 'Open');
+                // --- จุดที่แก้ไข: ใช้สถานะล่าสุดที่บันทึกสำเร็จในการ Update UI ---
+                // สมมติว่า payload.status คือค่าที่เราเพิ่งส่งไป
+                const isNowOpen = (payload.status === 'Open');
+                
+                // เรียกฟังก์ชันคุม UI
                 syncLockStatus(isNowOpen); 
 
-                // 2. แจ้งเตือนสำเร็จ
                 await Swal.fire({ 
                     icon: 'success', 
                     title: 'บันทึกสำเร็จ', 
@@ -593,7 +594,7 @@
                     timer: 2000 
                 });
 
-                // 3. โหลดข้อมูลใหม่จาก Server เพื่อรีเฟรชค่าอื่นๆ
+                // โหลดข้อมูลใหม่เพื่อความแม่นยำ
                 await loadAllData(); 
             } else {
                 throw new Error(data.message || 'บันทึกไม่สำเร็จ');
