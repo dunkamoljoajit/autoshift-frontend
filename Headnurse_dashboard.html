@@ -549,7 +549,7 @@
     async function saveSettings(e) {
         if (e) e.preventDefault();
         
-        // 1. ดึงค่าจากหน้าจอเก็บลง allQuotas เหมือนเดิม
+        // ดึงค่าโควต้าปัจจุบันจากหน้าจอ
         const m = document.getElementById('quotaMorning').value;
         const a = document.getElementById('quotaAfternoon').value;
         const n = document.getElementById('quotaNight').value;
@@ -563,18 +563,16 @@
         const deadline = document.getElementById('deadlineDate').value;
         const token = localStorage.getItem('token');
 
-        // --- จุดที่ต้องเพิ่ม: ดึงสถานะปัจจุบันจากปุ่ม Toggle ---
-        // เช็คว่าปุ่ม btn-open มี class 'toggle-active-open' อยู่หรือไม่
+        // ตรวจสอบสถานะจากปุ่ม Toggle ณ ขณะนั้น
         const isNowOpen = document.getElementById('btn-open').classList.contains('toggle-active-open');
         const statusToSend = isNowOpen ? 'Open' : 'Closed';
 
-        // 2. เตรียม Payload (เพิ่ม field 'status' เข้าไป)
         const payload = {
             weekdayQuotas: allQuotas.weekday,
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: deadline,
-            status: statusToSend // <--- ส่งค่าสถานะ Open ไปด้วย
+            status: statusToSend 
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -591,8 +589,13 @@
 
             const data = await res.json();
             if (data.success) {
-                Swal.fire({ icon: 'success', title: 'บันทึกและอัปเดตสถานะเรียบร้อย', timer: 1500 });
-                await loadAllData(); // โหลดข้อมูลใหม่เพื่อ Re-sync UI ทั้งหมด
+                // --- จุดที่แก้ไข: สั่ง Lock/Unlock UI ทันทีตามสถานะที่เพิ่งเซฟไป ---
+                syncLockStatus(isNowOpen); 
+                
+                await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: `ระบบสถานะ: ${statusToSend}`, timer: 1500 });
+                
+                // โหลดข้อมูลทั้งหมดใหม่อีกครั้งเพื่อความแม่นยำ
+                await loadAllData(); 
             } else {
                 throw new Error(data.message || 'บันทึกไม่สำเร็จ');
             }
@@ -606,15 +609,18 @@
         const isOpen = (status === 'Open');
         const btnOpen = document.getElementById('btn-open');
         const btnClosed = document.getElementById('btn-closed');
-            
+        
+        // อัปเดตสีปุ่ม Toggle ทันที
         btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
         btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
 
-        document.getElementById('period-status-text').innerText = isOpen 
-                ? "คุณเลือก: เปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)" 
-                : "คุณเลือก: ปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)";
+        const statusText = document.getElementById('period-status-text');
+        statusText.innerText = isOpen 
+            ? "คุณเลือก: เปิดรับข้อมูล (สถานะจะเปลี่ยนถาวรเมื่อกดบันทึก)" 
+            : "คุณเลือก: ปิดรับข้อมูล (สถานะจะเปลี่ยนถาวรเมื่อกดบันทึก)";
 
-        // --- เพิ่มบรรทัดนี้ เพื่อให้ช่อง Input เปิด/ปิด และปุ่มจัดเวร โผล่/หาย ทันทีที่กดสลับ ---
+        // ลอง Lock/Unlock Input ทันทีเพื่อให้ User เห็น Preview
+        // (แต่จะบันทึกจริงตอนกด Save Settings)
         syncLockStatus(isOpen); 
     }
 
