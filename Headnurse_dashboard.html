@@ -429,6 +429,7 @@
         
         if (settings.success && settings.settings) {
             const s = settings.settings;
+            selectedStatus = s.SystemStatus;
 
             // 1. ตรวจสอบสถานะจาก Database (ดึงมาเป็นตัวแปรพักไว้ก่อน)
             let isSystemOpen = s.SystemStatus === 'Open'; 
