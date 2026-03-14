@@ -437,11 +437,11 @@
             
             // 2. [ส่วนที่แก้ไข] ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
             if (s.deadline) {
-                const today = moment().startOf('day');
-                const deadlineDate = moment(s.deadline).startOf('day');
+                const now = moment();
+                const deadlineDate = moment(s.deadline);
                 
                 // ถ้าวันนี้ "เลย" วัน Deadline ไปแล้ว
-                if (today.isAfter(deadlineDate)) {
+                if (now.isAfter(deadlineDate)){
                     if (isSystemOpen) {
                         // ถ้าใน DB ยังเป็น Open ให้สั่งปิดอัตโนมัติ
                         await autoCloseSystem(); 
