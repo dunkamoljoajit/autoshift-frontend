@@ -549,30 +549,21 @@
     async function saveSettings(e) {
         if (e) e.preventDefault();
         
-        // ดึงค่าโควต้าปัจจุบันจากหน้าจอ
-        const m = document.getElementById('quotaMorning').value;
-        const a = document.getElementById('quotaAfternoon').value;
-        const n = document.getElementById('quotaNight').value;
-        
-        allQuotas[currentDayType] = {
-            morning: parseInt(m) || 0,
-            afternoon: parseInt(a) || 0,
-            night: parseInt(n) || 0
-        };
-
-        const deadline = document.getElementById('deadlineDate').value;
         const token = localStorage.getItem('token');
-
-        // ตรวจสอบสถานะจากปุ่ม Toggle ณ ขณะนั้น
-        const isNowOpen = document.getElementById('btn-open').classList.contains('toggle-active-open');
-        const statusToSend = isNowOpen ? 'Open' : 'Closed';
+        
+        // ดึงค่าโควต้าจากหน้าจอลงตัวแปร allQuotas
+        allQuotas[currentDayType] = {
+            morning: parseInt(document.getElementById('quotaMorning').value) || 0,
+            afternoon: parseInt(document.getElementById('quotaAfternoon').value) || 0,
+            night: parseInt(document.getElementById('quotaNight').value) || 0
+        };
 
         const payload = {
             weekdayQuotas: allQuotas.weekday,
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
-            deadline: deadline,
-            status: statusToSend 
+            deadline: document.getElementById('deadlineDate').value,
+            status: selectedStatus // <--- ใช้ค่าที่เราเลือกจากปุ่ม Toggle
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -589,18 +580,25 @@
 
             const data = await res.json();
             if (data.success) {
-                // --- จุดที่แก้ไข: สั่ง Lock/Unlock UI ทันทีตามสถานะที่เพิ่งเซฟไป ---
+                // 1. อัปเดต UI ทันทีตามสถานะที่เพิ่งบันทึกไป
+                const isNowOpen = (selectedStatus === 'Open');
                 syncLockStatus(isNowOpen); 
-                
-                await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: `ระบบสถานะ: ${statusToSend}`, timer: 1500 });
-                
-                // โหลดข้อมูลทั้งหมดใหม่อีกครั้งเพื่อความแม่นยำ
+
+                // 2. แจ้งเตือนสำเร็จ
+                await Swal.fire({ 
+                    icon: 'success', 
+                    title: 'บันทึกสำเร็จ', 
+                    text: isNowOpen ? 'ระบบเปิดรับข้อมูลแล้ว (ล็อกการแก้ไข)' : 'ระบบปิดแล้ว (เริ่มจัดเวรได้)',
+                    timer: 2000 
+                });
+
+                // 3. โหลดข้อมูลใหม่จาก Server เพื่อรีเฟรชค่าอื่นๆ
                 await loadAllData(); 
             } else {
                 throw new Error(data.message || 'บันทึกไม่สำเร็จ');
             }
         } catch (err) {
-            console.error("Save Settings Error:", err);
+            console.error("Save Error:", err);
             Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
         }
     }
