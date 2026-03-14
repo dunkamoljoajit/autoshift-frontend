@@ -563,7 +563,7 @@
             weekendQuotas: allQuotas.weekend,
             holidayQuotas: allQuotas.holiday,
             deadline: document.getElementById('deadlineDate').value,
-            SystemStatus: statusValue // <--- ใช้ค่าที่เราเลือกจากปุ่ม Toggle
+            status: selectedStatus // <--- ใช้ค่าที่เราเลือกจากปุ่ม Toggle
         };
 
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
