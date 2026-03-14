@@ -348,6 +348,7 @@
         weekend: { morning: 0, afternoon: 0, night: 0 },
         holiday: { morning: 0, afternoon: 0, night: 0 }
     };
+    let selectedStatus = 'Closed';
     let allConstraints = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -416,7 +417,7 @@
         document.getElementById('quotaNight').value = allQuotas[type].night;
     }
 
-  async function loadAllData() {
+ async function loadAllData() {
     const token = localStorage.getItem('token');
     try {
         const [setRes, statRes] = await Promise.all([
@@ -429,28 +430,28 @@
         if (settings.success && settings.settings) {
             const s = settings.settings;
 
-            // 1. ตรวจสอบสถานะจาก Database (ดึงมาเป็นตัวแปรพักไว้ก่อน)
-            let isSystemOpen = s.SystemStatus === 'Open'; 
+            // 1. ตรวจสอบสถานะจาก Database
+            // บรรทัดนี้สำคัญมาก: เอาค่าจาก DB มาเก็บในตัวแปร selectedStatus ที่เราประกาศไว้ด้านบนสุด
+            selectedStatus = s.SystemStatus || 'Closed'; 
+            let isSystemOpen = (selectedStatus === 'Open'); 
             
-            // 2. [ส่วนที่แก้ไข] ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
-            if (s.deadline) {
+            // 2. ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
+            if (s.DeadlineDate) { // ตรวจสอบชื่อ Key ให้ตรงกับใน DB (DeadlineDate)
                 const today = moment().startOf('day');
-                const deadlineDate = moment(s.deadline).startOf('day');
+                const deadlineDate = moment(s.DeadlineDate).startOf('day');
                 
-                // ถ้าวันนี้ "เลย" วัน Deadline ไปแล้ว
                 if (today.isAfter(deadlineDate)) {
                     if (isSystemOpen) {
-                        // ถ้าใน DB ยังเป็น Open ให้สั่งปิดอัตโนมัติ
                         await autoCloseSystem(); 
-                        return; // ออกจากฟังก์ชันเพื่อรอโหลดใหม่จาก autoCloseSystem()
+                        return; 
                     } else {
-                        // ถ้าเป็น Closed อยู่แล้ว ก็ให้ตัวแปรสถานะเป็นเท็จ
                         isSystemOpen = false;
+                        selectedStatus = 'Closed';
                     }
                 }
             }
 
-            // 3. จัดการ Quota Data (ส่วนนี้คงเดิม)
+            // 3. จัดการ Quota Data
             const parseQuota = (data) => {
                 if (!data) return { morning: 0, afternoon: 0, night: 0 };
                 let parsed = typeof data === 'string' ? JSON.parse(data) : data;
@@ -461,22 +462,22 @@
                 };
             };
 
-            allQuotas.weekday = parseQuota(s.weekdayQuotas);
-            allQuotas.weekend = parseQuota(s.weekendQuotas);
-            allQuotas.holiday = parseQuota(s.holidayQuotas);
+            // ดึงค่า Quotas มาเก็บใน allQuotas (ตรวจชื่อ Key ให้ตรงกับ DB)
+            allQuotas.weekday = parseQuota(s.WeekdayQuotas);
+            allQuotas.weekend = parseQuota(s.WeekendQuotas);
+            allQuotas.holiday = parseQuota(s.HolidayQuotas);
 
-            // แสดงผล Quota ปัจจุบัน
+            // แสดงผล Quota ปัจจุบันตาม Tab ที่เลือกอยู่
             const current = allQuotas[currentDayType];
             document.getElementById('quotaMorning').value = current.morning;
             document.getElementById('quotaAfternoon').value = current.afternoon;
             document.getElementById('quotaNight').value = current.night;
 
-            if (s.deadline) {
-                document.getElementById('deadlineDate')._flatpickr.setDate(s.deadline);
+            if (s.DeadlineDate) {
+                document.getElementById('deadlineDate')._flatpickr.setDate(s.DeadlineDate);
             }
 
-            // 4. [จุดสำคัญที่สุด] สั่งให้ UI แสดงผลตามสถานะที่เช็คแล้ว
-            // ถ้าเลย Deadline มาแล้ว isSystemOpen จะเป็น false ปุ่มจัดเวรจะโผล่เอง
+            // 4. สั่งให้ UI แสดงผล (Lock/Unlock) ตามสถานะที่สรุปได้
             syncLockStatus(isSystemOpen); 
         }
 
@@ -604,21 +605,19 @@
     }
     // --- [ฟังก์ชันอื่นๆ คงเดิมตามที่คุณเขียนไว้ได้เลยครับ] ---
     function togglePeriod(status) {
+        selectedStatus = status; // <--- บรรทัดนี้จะเอาค่า 'Open' หรือ 'Closed' ไปใส่ในกล่องที่เราประกาศไว้
         const isOpen = (status === 'Open');
         const btnOpen = document.getElementById('btn-open');
         const btnClosed = document.getElementById('btn-closed');
         
-        // อัปเดตสีปุ่ม Toggle ทันที
         btnOpen.className = isOpen ? 'toggle-btn toggle-active-open' : 'toggle-btn toggle-inactive';
         btnClosed.className = !isOpen ? 'toggle-btn toggle-active-closed' : 'toggle-btn toggle-inactive';
 
         const statusText = document.getElementById('period-status-text');
         statusText.innerText = isOpen 
-            ? "คุณเลือก: เปิดรับข้อมูล (สถานะจะเปลี่ยนถาวรเมื่อกดบันทึก)" 
-            : "คุณเลือก: ปิดรับข้อมูล (สถานะจะเปลี่ยนถาวรเมื่อกดบันทึก)";
+            ? "คุณเลือก: เปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)" 
+            : "คุณเลือก: ปิดรับข้อมูล (จะบันทึกเมื่อกดปุ่มด้านล่าง)";
 
-        // ลอง Lock/Unlock Input ทันทีเพื่อให้ User เห็น Preview
-        // (แต่จะบันทึกจริงตอนกด Save Settings)
         syncLockStatus(isOpen); 
     }
 
