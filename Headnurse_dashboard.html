@@ -438,7 +438,7 @@
             // 2. [ส่วนที่แก้ไข] ตรวจสอบ Deadline (เปิด-ปิดอัตโนมัติ)
             if (s.deadline) {
                 const now = moment();
-                const deadlineDate = moment(s.deadline);
+                const deadlineDate = moment(s.deadline).endOf('day');
                 
                 // ถ้าวันนี้ "เลย" วัน Deadline ไปแล้ว
                 if (now.isAfter(deadlineDate)){
@@ -480,7 +480,7 @@
 
             // 4. [จุดสำคัญที่สุด] สั่งให้ UI แสดงผลตามสถานะที่เช็คแล้ว
             // ถ้าเลย Deadline มาแล้ว isSystemOpen จะเป็น false ปุ่มจัดเวรจะโผล่เอง
-            syncLockStatus(isSystemOpen); 
+            togglePeriod(isSystemOpen ? 'Open' : 'Closed');
         }
 
     } catch (e) { 
