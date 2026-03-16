@@ -53,6 +53,11 @@
                     <label class="text-sm font-medium text-slate-600 block mb-2">รอบการจัดเวรที่กำลังตั้งค่า:</label>
                     <p id="setting-period-display" class="font-bold text-lg text-indigo-700">กำลังคำนวณรอบ...</p>
                 </div>
+                <div class="mt-2">
+                    <p id="constraint-deadline" class="text-red-600 font-semibold">
+                        กำลังโหลดกำหนดส่งข้อมูล...
+                    </p>
+                </div>
 
                 <hr class="border-slate-100">
                 
@@ -194,12 +199,18 @@
 
         // --- ฟังก์ชันย่อย ---
 
-        async function checkSystemStatus() {
+       async function checkSystemStatus() {
             try {
                 const res = await apiRequest(`${API_URL}/api/check-constraint-window`);
                 const data = await res.json();
-                
-                // ถ้าระบบ "ปิด" (isOpen = false) -> ดีดออกทันที
+
+                const deadlineEl = document.getElementById('constraint-deadline');
+
+                if (data.deadline && typeof moment !== 'undefined') {
+                    const formatted = moment(data.deadline).format('D MMMM YYYY HH:mm');
+                    deadlineEl.innerText = `⏰ ส่งข้อมูลได้ถึง: ${formatted} น.`;
+                }
+
                 if (!data.isOpen) {
                     Swal.fire({
                         icon: 'error',
@@ -210,15 +221,15 @@
                     }).then(() => {
                         window.location.href = user.RoleID === 1 ? 'Headnurse_dashboard.html' : 'dashboard.html';
                     });
-                    // Disable ปุ่มไว้กันเหนียว
+
                     document.getElementById('save-constraints-btn').disabled = true;
                     document.getElementById('save-constraints-btn').classList.add('bg-gray-400');
                 }
+
             } catch (err) {
                 console.error("Check Status Error", err);
             }
         }
-
         async function loadExistingData(period) {
             const loadingOverlay = document.getElementById('loading-overlay');
             const saveBtn = document.getElementById('save-constraints-btn');
