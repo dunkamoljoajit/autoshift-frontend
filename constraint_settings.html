@@ -207,8 +207,10 @@
                 const deadlineEl = document.getElementById('constraint-deadline');
 
                 if (data.deadline && typeof moment !== 'undefined') {
-                    const formatted = moment(data.deadline).format('D MMMM YYYY HH:mm');
+                    const formatted = moment.utc(data.deadline).local().format('D MMMM YYYY HH:mm');
                     deadlineEl.innerText = `⏰ ส่งข้อมูลได้ถึง: ${formatted} น.`;
+                } else {
+                    deadlineEl.innerText = '⚠️ ยังไม่ได้ตั้งกำหนดส่ง';
                 }
 
                 if (!data.isOpen) {
