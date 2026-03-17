@@ -208,6 +208,8 @@
 
                 if (data.deadline && typeof moment !== 'undefined') {
                     const formatted = moment(data.deadline, "YYYY-MM-DD HH:mm:ss")
+                    .locale('th')
+                    .format('D MMMM YYYY HH:mm');
                     deadlineEl.innerText = `⏰ ส่งข้อมูลได้ถึง: ${formatted} น.`;
                 } else {
                     deadlineEl.innerText = '⚠️ ยังไม่ได้ตั้งกำหนดส่ง';
