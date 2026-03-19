@@ -789,6 +789,24 @@
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user || user.RoleID !== 1) window.location.href = 'login.html';
     }
+    // --- ฟังก์ชันสำหรับเปิด-ปิดการมองเห็นรหัสผ่านใน SweetAlert2 ---
+    function toggleSwalPass(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+            icon.style.color = '#7c3aed'; // เปลี่ยนเป็นสีม่วงเมื่อเปิดดู
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+            icon.style.color = '#ccc';
+        }
+    }
+
+    // บังคับให้เป็น Global Scope เพื่อให้เรียกจาก onclick ใน HTML ได้
+    window.toggleSwalPass = toggleSwalPass;
 </script>
 </body>
 </html>
