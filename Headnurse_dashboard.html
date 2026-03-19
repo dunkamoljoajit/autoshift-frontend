@@ -784,19 +784,56 @@
     }
 
     async function savePasswordToDB(payload) {
-        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        // แสดง Loading ระหว่างรอ Server ตรวจสอบรหัสผ่าน
+        Swal.fire({ 
+            title: 'กำลังตรวจสอบข้อมูล...', 
+            allowOutsideClick: false, 
+            didOpen: () => { Swal.showLoading(); } 
+        });
+
         try {
             const res = await fetch(`${API_URL}/api/change-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                body: JSON.stringify({ ...payload, currentSocketId: window.socket ? window.socket.id : null })
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify({ 
+                    ...payload, 
+                    currentSocketId: window.socket ? window.socket.id : null 
+                })
             });
+
+            // แปลง Response เป็น JSON ก่อนเพื่อดึง Message ที่ Backend ส่งมา
             const data = await res.json();
-            if (data.success) {
+
+            // ตรวจสอบว่าสำเร็จหรือไม่ (เช็คทั้ง res.ok และ data.success)
+            if (res.ok && data.success) {
+                // บันทึก Token ใหม่ที่ได้จาก Backend (กรณีเปลี่ยน Password สำเร็จ)
                 if (data.token) localStorage.setItem('token', data.token);
-                await Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', timer: 2500 });
-            } else { throw new Error(data.message); }
-        } catch (err) { Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: err.message }); }
+                
+                await Swal.fire({ 
+                    icon: 'success', 
+                    title: 'เปลี่ยนรหัสผ่านสำเร็จ!', 
+                    text: 'ระบบได้อัปเดตรหัสผ่านใหม่เรียบร้อยแล้ว',
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+                // อาจจะเพิ่ม window.location.reload() หรือปิด Modal ตรงนี้
+            } else {
+                // ถ้าไม่สำเร็จ (เช่น รหัสเดิมผิด) ให้โยน Error พร้อม Message จาก Backend
+                throw new Error(data.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+            }
+        } catch (err) {
+            // ดักจับ Error ทั้งจาก Network และจากที่เรา throw ออกมาเอง
+            console.error("Change Password Error:", err);
+            Swal.fire({ 
+                icon: 'error', 
+                title: 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 
+                text: err.message, // จะแสดง "รหัสผ่านเดิมไม่ถูกต้อง" ตามที่ Backend ส่งมา
+                confirmButtonColor: '#7c3aed'
+            });
+        }
     }
 
     function checkHeadNurseRole() {
