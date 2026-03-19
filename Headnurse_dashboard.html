@@ -717,7 +717,8 @@
                     <div class="validation-box mt-4">
                         <ul>
                             <li id="m-req-length" class="m-req-item"><i class="fas fa-circle text-[8px]"></i> อย่างน้อย 8 ตัวอักษร</li>
-                            <li id="m-req-match" class="m-req-item"><i class="fas fa-circle text-[8px]"></i> รหัสผ่านตรงกัน</li>
+                            <li id="m-req-match" class="m-req-item"><i class="fas fa-circle text-[8px]"></i> รหัสผ่านใหม่ตรงกัน</li>
+                            <li id="m-req-diff" class="m-req-item"><i class="fas fa-circle text-[8px]"></i> ต้องไม่ซ้ำกับรหัสผ่านเดิม</li>
                         </ul>
                     </div>
                 </div>
@@ -728,20 +729,29 @@
             cancelButtonText: 'ยกเลิก',
             confirmButtonColor: '#7c3aed',
             didOpen: () => {
+                const oldPass = document.getElementById('swal-old-pass');
                 const newPass = document.getElementById('swal-new-pass');
                 const confPass = document.getElementById('swal-confirm-pass');
                 
-                // ตรวจสอบเงื่อนไขแบบ Real-time
                 const validate = () => {
                     const isLengthOk = newPass.value.length >= 8;
                     const isMatch = newPass.value === confPass.value && newPass.value !== "";
+                    // เงื่อนไข: รหัสใหม่ต้องไม่ตรงกับรหัสเก่า (ตรวจสอบเมื่อมีการกรอกทั้งคู่)
+                    const isDifferent = newPass.value !== oldPass.value || newPass.value === "";
 
                     document.getElementById('m-req-length').className = isLengthOk ? 'm-req-item valid' : 'm-req-item';
                     document.getElementById('m-req-match').className = isMatch ? 'm-req-item valid' : 'm-req-item';
+                    document.getElementById('m-req-diff').className = (isDifferent && newPass.value !== "") ? 'm-req-item valid' : 'm-req-item';
+                    
+                    // ถ้าซ้ำรหัสเดิม ให้แสดงสีแดงเตือน (Optional)
+                    if (newPass.value !== "" && oldPass.value !== "" && newPass.value === oldPass.value) {
+                        document.getElementById('m-req-diff').style.color = '#ef4444'; 
+                    } else {
+                        document.getElementById('m-req-diff').style.color = '';
+                    }
                 };
 
-                newPass.addEventListener('input', validate);
-                confPass.addEventListener('input', validate);
+                [oldPass, newPass, confPass].forEach(el => el.addEventListener('input', validate));
             },
             preConfirm: () => {
                 const oldPass = document.getElementById('swal-old-pass').value;
@@ -758,6 +768,10 @@
                 }
                 if (newPass !== confPass) {
                     Swal.showValidationMessage('รหัสผ่านใหม่ไม่ตรงกัน');
+                    return false;
+                }
+                if (newPass === oldPass) {
+                    Swal.showValidationMessage('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
                     return false;
                 }
                 return { oldPassword: oldPass, newPassword: newPass };
