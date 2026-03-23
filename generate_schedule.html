@@ -365,12 +365,19 @@
 
                         let shiftText = "";
                         if (matches.length > 0) {
+                            // ✅ 1. จัดเรียงลำดับกะ (Sort) ให้ เช้า(1) -> บ่าย(2) -> ดึก(3)
+                            matches.sort((a, b) => {
+                                // ใช้ Shift_id ในการเรียงลำดับ (จากไฟล์ index.js ของคุณ Shift_id คือ 1, 2, 3)
+                                return (a.Shift_id || 0) - (b.Shift_id || 0);
+                            });
+
+                            // ✅ 2. แปลงเป็นตัวอักษรย่อหลังจากเรียงลำดับแล้ว
                             shiftText = matches.map(s => {
                                 if (s.ShiftName.includes("เช้า")) { countM++; return "ช"; }
                                 if (s.ShiftName.includes("บ่าย")) { countA++; return "บ"; }
                                 if (s.ShiftName.includes("ดึก")) { countN++; return "ด"; }
                                 return "";
-                            }).join("/");
+                            }).filter(t => t !== "").join("/"); // filter กันค่าว่าง แล้วเชื่อมด้วย /
                         }
                         row[`${d}`] = shiftText;
                     }
