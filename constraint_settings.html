@@ -320,8 +320,8 @@
                 Night: parseInt(document.getElementById('pref-Night').value) || 3,
             };
 
-            if (daysOff < 0 || daysOff > 10) {
-                  Swal.fire('แจ้งเตือน', 'จำนวนวันหยุดต้องอยู่ระหว่าง 0-10 วัน', 'warning');
+            if (daysOff < 0 || daysOff > 15) {
+                  Swal.fire('แจ้งเตือน', 'จำนวนวันหยุดต้องอยู่ระหว่าง 0-15 วัน', 'warning');
                   return;
             }
             
